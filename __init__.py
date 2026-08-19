@@ -1,10 +1,6 @@
-"""App de viabilidade de refil de palhetas — Suicatech / Intrace AG.
+"""Telas do app.
 
-Importar qualquer coisa de src/ dispara a validacao V1-V7 dos parametros.
-Nao ha caminho de import que contorne isso: e o que garante que o app nao
-sobe com parametro invalido (DESIGN.md §11.2, §7.4).
+Tela 1 (simulador) e completa e nao depende de nenhum dado externo.
+Telas 2 e 3 existem como ESTRUTURA, exibindo o estado vazio enquanto o
+catalogo nao tiver registros publicados pelo pipeline.
 """
-
-from src.validacao_parametros import validar_tudo as _validar_tudo
-
-_validar_tudo()
