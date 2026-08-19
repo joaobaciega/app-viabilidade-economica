@@ -1,0 +1,25 @@
+# DEPENDENCIAS DE RUNTIME — o que o Streamlit Community Cloud instala.
+#
+# Somente o que o APP importa. `openpyxl` (leitura de planilha) e `pytest` vivem
+# em requirements-dev.txt: o pipeline de publicacao roda na sua maquina, nunca no
+# servidor, e teste nao se instala em producao.
+#
+# Por que isso importa aqui e nao e purismo: o Community Cloud hiberna apos 12 h
+# sem trafego (plano §6.2) e a probabilidade de o app estar dormindo na visita e
+# MUITO ALTA (§9, risco 6). Cada pacote a menos e menos tempo entre o vendedor
+# abrir o link e o cliente ver a tela.
+#
+# VERSOES FIXADAS COM == por exigencia do DESIGN.md §3 (camada B). O CSS injetado
+# depende de seletores internos do Streamlit e quebra entre versoes. Subir
+# qualquer versao daqui = reteste visual obrigatorio de TODOS os itens 🔧,
+# registrado em docs/DIVERGENCIAS.md §5.
+#
+# NUNCA usar >= nem faixa. O checklist §12 reprova.
+#
+# ATENCAO NO DEPLOY: pandas 3.0.3 exige Python >= 3.11. Escolha Python 3.12 ou
+# 3.13 em "Advanced settings" ao criar o app no Streamlit Cloud.
+
+streamlit==1.58.0
+altair==6.2.1
+pandas==3.0.3
+fpdf2==2.8.8

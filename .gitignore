@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# NUNCA versionar — o repositório vai para o GitHub e o app tem link aberto
+# ---------------------------------------------------------------------------
+
+# Segredos do Streamlit. Hoje o app não usa nenhum, e é para continuar assim:
+# se algum dia usar, o arquivo fica AQUI e nunca no repositório.
+.streamlit/secrets.toml
+*.env
+.env
+
+# Preço, custo e âncora nunca são persistidos em disco (DESIGN §5.2, §11.1) —
+# esta linha existe para o caso de alguém gerar um dump de sessão por descuido.
+sessao*.json
+*_sessao.json
+
+# PDFs gerados na reunião: podem conter custo de aquisição e nome de cliente
+simulacao-refil-*.pdf
+
+
+# ---------------------------------------------------------------------------
+# Ruído de ferramenta
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+.venv/
+venv/
+env/
+
+.vscode/
+.idea/
+*.swp
+
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+~$*.xlsx
+
+
+# ---------------------------------------------------------------------------
+# O que FICA no repositório, e por quê — para ninguém apagar por engano
+# ---------------------------------------------------------------------------
+# dados/snapshot/*.json      o app lê o snapshot publicado. Sem ele as Telas 2 e
+#                            3 mostram "nenhum snapshot publicado"
+# dados/planilha_modelo.xlsx o formato da curadoria da Fase 0
+# assets/logo*.png           a marca. Ver assets/LEIA-ME.md
+# assets/originais/          os arquivos que o cliente entregou, como procedência
+# DESIGN.md, plano-*.md      fonte de verdade; o código é lido contra eles
+# docs/                      divergências e checklist pré-visita
+# testes/                    os 16 casos e o checklist §12
