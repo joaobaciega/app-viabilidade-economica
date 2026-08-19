@@ -161,31 +161,49 @@ A lista tem que mostrar `src/calculo.py`, `assets/logo.png` e
 `.streamlit/config.toml` **com a barra** — se algum aparecer sem pasta, a árvore
 está achatada de novo (ver §0).
 
-### 3.3.1 Sobrescrever o repositório achatado
+### 3.3.1 Publicar pelo GitHub Desktop — sem comando
 
-O repositório no GitHub hoje contém o dump achatado, com histórico próprio. O
-commit local não descende dele, então um `push` normal é recusado. Como não há
-nada no remoto que valha preservar — é um upload quebrado —, sobrescreva:
+O upload achatado tinha histórico próprio, então o commit local não descendia
+dele e um `push` normal seria recusado. **Isso já foi resolvido** com um merge
+`-s ours`, que mantém a árvore correta e registra o dump achatado como
+ancestral. Consequência prática: o remoto é ancestral do local, o push é um
+avanço normal, e **nem `--force` nem apagar o repositório são necessários.**
+
+1. Abra o **GitHub Desktop** (você já está logado como `joaobaciega`)
+2. **File → Add local repository…** → *Choose…* → selecione a pasta do projeto
+   → **Add repository**
+3. No topo, clique **Push origin** (mostra uma seta ↑ com o número de commits)
+4. Espere a barra terminar
+
+Se o botão do topo disser **Fetch origin** em vez de *Push origin*, clique nele
+uma vez — o *Push origin* aparece em seguida.
+
+**Não clique em *Pull origin*.** O histórico achatado ainda existe do lado
+remoto; um pull traria os 60 arquivos soltos de volta para dentro da sua pasta.
+Depois deste primeiro push isso deixa de ser um risco.
+
+<details>
+<summary>Alternativa por comando, se o GitHub Desktop falhar</summary>
 
 ```powershell
 $git = "$env:LOCALAPPDATA\GitHubDesktop\app-3.5.12\resources\app\git\cmd\git.exe"
-& $git push --force -u origin main
+& $git push -u origin main
 ```
+</details>
 
-Na primeira vez ele abre o navegador para você autorizar com a conta do GitHub.
+### 3.3.2 Público ou privado — decida antes da primeira visita
 
-> **`--force` apaga o conteúdo atual do repositório remoto.** Aqui isso é o
-> objetivo, e é seguro porque o que está lá é o dump achatado de um dia. **Não
-> repita `--force` nos pushes seguintes** — depois desta vez, `git push` puro.
+**O repositório está público hoje.** Ele não contém tabela de preço nem custo
+— `verificar.py` e as validações S11/S12 garantem isso —, mas contém o
+`DESIGN.md` e o `plano-app-viabilidade_1.md`, que descrevem a estratégia
+comercial, a margem-alvo e o posicionamento contra a palheta original em
+detalhe. **Sugiro privado.**
 
-Se preferir não usar `--force`: apague o repositório em *Settings → Danger Zone*
-no GitHub, crie um novo vazio com o mesmo nome (**sem** README, `.gitignore` ou
-licença) e rode `& $git push -u origin main`. O app do Streamlit reconecta,
-porque aponta para `usuário/nome`, não para o histórico.
+*Settings → General → Danger Zone → Change repository visibility → Make
+private.* O Community Cloud funciona igual com repositório privado.
 
-**Público ou privado?** O Community Cloud funciona com os dois. O repositório
-não contém tabela de preço nem custo — mas contém o `DESIGN.md`, que descreve a
-estratégia comercial em detalhe. **Sugiro privado.**
+A lista tem que mostrar `src/calculo.py` **com a barra**. Se algum arquivo do
+app aparecer sem pasta, a árvore está achatada de novo — volte para a §0.
 
 ### 3.4 Publicar
 
