@@ -1,0 +1,219 @@
+{
+  "_leia": [
+    "Os 16 casos-teste. DADO, nao codigo — para voce editar um caso sem mexer em Python.",
+    "T1-T12 sao os casos da §11.3 do DESIGN, com os numeros esperados literais.",
+    "T13-T16 fecham 16 e cobrem exigencias da v5 que nao tinham caso-teste proprio.",
+    "ESTES NUMEROS SAO DE TESTE. NENHUM DELES VIRA DEFAULT NO CODIGO (§11.3)."
+  ],
+
+  "_ancora": [
+    "A ancora mudou em 11/08/2026, por decisao do cliente. Antes: um campo unico",
+    "de 'margem de contribuicao mensal atual com palhetas' — pergunta que gerente",
+    "de pos-venda nao responde de cabeca. Agora: quantas palhetas ele vende por",
+    "mes (Q), a quanto (Po) e o custo dela (Ko, OPCIONAL).",
+    "Po e Ko usam os numeros do plano §1.1 (palheta inteira: 459,00 e 270,00),",
+    "o que da margem unitaria de 189,00 — o mesmo valor do CT-2 do DESIGN v4."
+  ],
+
+  "base": {
+    "pontos_de_venda": 1,
+    "passagens_por_ponto": 300,
+    "aproveitamento_dianteiro": 0.30,
+    "aproveitamento_traseiro": 0.10,
+    "preco_dianteiro": 197.90,
+    "custo_dianteiro": 84.90,
+    "preco_traseiro": 99.00,
+    "custo_traseiro": 45.00,
+    "palhetas_originais_mes": 20,
+    "preco_original": 459.00,
+    "custo_original": 270.00
+  },
+
+  "T1": {
+    "titulo": "Cenario base — substituicao 0%",
+    "entradas": {},
+    "esperado": {
+      "passagens_totais": 300,
+      "pares_dianteiros": 90,
+      "unidades_traseiras": 30,
+      "margem_dianteiro": 10170.00,
+      "margem_traseiro": 1620.00,
+      "margem_refil": 11790.00,
+      "margem_unitaria_original": 189.00,
+      "originais_por_mes": 20,
+      "margem_atual": 3780.00,
+      "incremental_mensal": 11790.00,
+      "anual": 141480.00,
+      "traducao": "3 a cada 10 carros que entram na oficina",
+      "estado": "E3_completo"
+    }
+  },
+
+  "T2": {
+    "titulo": "Cashback nas duas categorias — NAO desconta da margem",
+    "entradas": {
+      "cashback_dianteiro": [10.0, 3.0, 2.0],
+      "cashback_traseiro": [4.0, 1.5, 1.0]
+    },
+    "esperado": {
+      "cashback_por_par_dianteiro": 15.00,
+      "cashback_por_unidade_traseira": 6.50,
+      "cashback_total": 1545.00,
+      "por_destinatario": { "Consultor": 1020.00, "Gerente": 315.00, "Marketing": 210.00 },
+      "incremental_mensal": 11790.00,
+      "anual": 141480.00,
+      "rotulo": "margem de contribuição incremental",
+      "nota": "90 pares x 15,00 = 1.350 + 30 unidades x 6,50 = 195 -> 1.545"
+    }
+  },
+
+  "T3": {
+    "titulo": "Margem negativa — custo acima do preco no dianteiro",
+    "entradas": { "custo_dianteiro": 250.00 },
+    "esperado": {
+      "margem_dianteiro": -4689.00,
+      "incremental_mensal": -3069.00,
+      "anual": -36828.00,
+      "estado": "E5_incremental_negativo",
+      "nota": "90 x (197,90 - 250,00) = -4.689 ; + 1.620 do traseiro = -3.069"
+    }
+  },
+
+  "T3b": {
+    "titulo": "Sem custo da original — sem incremental, rotulo muda",
+    "entradas": { "custo_original": null },
+    "esperado": {
+      "incremental_mensal": 11790.00,
+      "rotulo": "margem de contribuição do refil",
+      "tem_margem_da_original": false
+    }
+  },
+
+  "T4": {
+    "titulo": "Bloqueio de derivacao de unidade — traseiro fora da conta",
+    "entradas": { "preco_traseiro": null, "custo_traseiro": null },
+    "esperado": {
+      "margem_traseiro": 0.0,
+      "incremental_mensal": 10170.00,
+      "anual": 122040.00,
+      "traseiro_na_conta": false,
+      "estado": "E3_completo",
+      "nota": "se houvesse derivacao por /2, MCt daria 1.695 e o anual 142.380"
+    }
+  },
+
+  "T5": {
+    "titulo": "Sem passagens — estado E1, nenhum valor em R$",
+    "entradas": { "passagens_por_ponto": null },
+    "esperado": {
+      "estado": "E1_sem_operacao",
+      "anual": null,
+      "incremental_mensal": null
+    }
+  },
+
+  "T6": {
+    "titulo": "Carga implausivel — regra R1",
+    "entradas": {
+      "passagens_por_ponto": 1500,
+      "consultores_por_ponto": 2,
+      "dias_uteis": 22
+    },
+    "esperado": {
+      "carga": 34.09,
+      "faixa_contem": "carga de 34,1 veículos por consultor por dia"
+    }
+  },
+
+  "T7": {
+    "titulo": "Carga plausivel — R1 nao dispara",
+    "entradas": {
+      "pontos_de_venda": 10,
+      "passagens_por_ponto": 300,
+      "consultores_por_ponto": 3,
+      "dias_uteis": 22
+    },
+    "esperado": {
+      "carga": 4.55,
+      "total_passagens_texto": "→ 3.000 passagens por mês no total",
+      "total_consultores_texto": "→ 30 consultores no total"
+    }
+  },
+
+  "T8": {
+    "titulo": "Verificacao de carga desligada",
+    "entradas": { "consultores_por_ponto": null },
+    "esperado": {
+      "faixa_contem": "verificação de carga desligada — consultores não informados"
+    }
+  },
+
+  "T9": {
+    "titulo": "Preset ativo e derivado, nao guardado",
+    "entradas": { "aproveitamento_dianteiro": 0.27 },
+    "esperado": {
+      "preset_ativo": null,
+      "aproveitamento_traseiro_permanece": 0.10
+    }
+  },
+
+  "T10": {
+    "titulo": "Dominio do grafico igual ao do slider",
+    "esperado": { "dominio": [0, 60] }
+  },
+
+  "T11": {
+    "titulo": "Cashback NAO desconta — a armadilha da §6.1.7",
+    "entradas": {
+      "cashback_dianteiro": [10.0, 3.0, 2.0],
+      "cashback_traseiro": [0.0, 0.0, 0.0]
+    },
+    "esperado": {
+      "incremental_mensal": 11790.00,
+      "anual": 141480.00,
+      "rotulo": "margem de contribuição incremental",
+      "cashback_total": 1350.00
+    }
+  },
+
+  "T12": {
+    "titulo": "Rotulo acompanha a conta, e nunca diz lucro",
+    "esperado": {
+      "com_margem_da_original": "margem de contribuição incremental",
+      "sem_margem_da_original": "margem de contribuição do refil"
+    }
+  },
+
+  "T13": {
+    "titulo": "Traducao e arredondamento (§6.1.5)",
+    "esperado": {
+      "0.30": "3 a cada 10 carros que entram na oficina",
+      "0.27": "quase 3 a cada 10 carros que entram na oficina",
+      "0.34": "3 a cada 10 carros que entram na oficina",
+      "0.25": "quase 3 a cada 10 carros que entram na oficina",
+      "0.20": "2 a cada 10 carros que entram na oficina",
+      "0.00": "nenhum a cada 10 carros que entram na oficina"
+    }
+  },
+
+  "T14": {
+    "titulo": "Formatacao de moeda (§6.1.5)",
+    "esperado": {
+      "agregado_141480": "R$ 141.480",
+      "agregado_negativo": "−R$ 38.520",
+      "unitario_197_9": "R$ 197,90",
+      "unitario_113": "R$ 113,00",
+      "inteiro_3000": "3.000"
+    }
+  },
+
+  "T15": {
+    "titulo": "V1-V7 abortam o app com parametro invalido",
+    "esperado": { "levanta": "ParametroInvalido" }
+  },
+
+  "T16": {
+    "titulo": "Build reprova snapshot invalido (S1-S13)",
+    "esperado": { "exit_code": 1 }
+  }
+}

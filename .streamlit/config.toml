@@ -1,0 +1,43 @@
+# CAMADA A — tema nativo do Streamlit (DESIGN.md §3, camada A).
+#
+# Esta camada e ESTAVEL: nao depende de seletor interno e nao quebra em
+# atualizacao de versao. Tudo que couber aqui fica aqui.
+#
+# O que esta camada cobre, e que portanto NAO precisa de CSS injetado:
+#   - cor de acento dos botoes type="primary", do slider e do foco
+#   - fundo branco dominante
+#   - fundo cinza dos conteineres com borda
+#   - cor do texto
+#   - familia tipografica
+#
+# Ganho de resiliencia (DESIGN §3, camada A): o estado ativo dos tres botoes
+# de cenario usa type="primary"/"secondary" — NATIVO. Se todo o CSS injetado
+# da camada B quebrar numa atualizacao, os botoes continuam funcionando e
+# continuam mostrando qual cenario esta ativo. So o tamanho degrada.
+# Isso e deliberado: o protagonista da tela nao depende da camada fragil.
+
+[theme]
+# ⚠️ DECISAO EM ABERTO K — hexadecimal oficial do vermelho Suica Tech.
+# Este e o provisorio VALIDADO da §3.1.1: 5,88:1 sobre #FFFFFF,
+# 5,40:1 sobre #F5F5F5, 5,88:1 para branco sobre ele.
+# Ao substituir pelo oficial, refazer as 3 medidas da §3.1.1 e a da §5.11.1.
+# Armadilha medida: o vermelho de bandeira suica puro #FF0000 da 4,00:1 —
+# reprova nas tres. Se o oficial for #FF0000, ele fica no logo e a interface
+# usa um passo escurecido da mesma matiz.
+primaryColor = "#C8102E"
+
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F5F5"
+textColor = "#0B0B0B"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+# DESIGN §6.1.9: a marca do framework nunca aparece.
+toolbarMode = "minimal"
+showErrorDetails = "none"

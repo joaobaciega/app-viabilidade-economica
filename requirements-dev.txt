@@ -1,0 +1,15 @@
+# DEPENDENCIAS DE DESENVOLVIMENTO — a sua maquina e o CI.
+#
+# Instale com:  python -m pip install -r requirements-dev.txt
+#
+# Inclui o runtime e acrescenta:
+#   openpyxl  leitura e escrita da planilha, usada SO pelo pipeline de publicacao
+#             (pipeline/) e pelos testes. O app nunca importa
+#   pytest    os 16 casos-teste da §11.3 e o checklist da §12
+#
+# Mesma regra de versao do runtime: fixadas com ==, nunca faixa.
+
+-r requirements.txt
+
+openpyxl==3.1.5
+pytest==9.1.1
