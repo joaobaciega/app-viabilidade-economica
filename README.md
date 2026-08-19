@@ -21,9 +21,10 @@ python -m streamlit run app.py
 Streamlit Cloud instala. `requirements-dev.txt` acrescenta `openpyxl` (usado só
 pelo pipeline) e `pytest`.
 
-**Para colocar no ar:** [docs/DEPLOY.md](docs/DEPLOY.md). O passo que mais falha
-é a versão do Python — `pandas` exige ≥ 3.11, e isso se escolhe em *Advanced
-settings* na criação do app, sem poder mudar depois.
+**Para colocar no ar:** [docs/DEPLOY.md](docs/DEPLOY.md). Publique **só com
+`git push`** — arrastar os arquivos para a interface web do GitHub achata a
+estrutura de pastas e o deploy morre em `ModuleNotFoundError: No module named
+'src'`. Isso já aconteceu uma vez; a §0 do DEPLOY conta como reconhecer.
 
 ## Os quatro comandos que importam
 

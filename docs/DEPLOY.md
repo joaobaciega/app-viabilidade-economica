@@ -1,5 +1,33 @@
 # Colocar o app no ar — Streamlit Community Cloud
 
+## 0. O erro que já aconteceu aqui — leia antes de qualquer coisa
+
+> ### 🚫 Não suba os arquivos pela página do GitHub
+>
+> A primeira publicação foi feita arrastando arquivos para a interface web do
+> GitHub. **A interface web achata a estrutura de pastas:** os 72 arquivos
+> caíram todos na raiz do repositório, `src/` deixou de existir, e o deploy
+> morreu em `app.py` com:
+>
+> ```
+> ModuleNotFoundError: No module named 'src'
+> ```
+>
+> O sinal que confirma o diagnóstico: apareceram arquivos `.pyc` no
+> repositório. Eles estão no `.gitignore`, então `git add` **nunca** os
+> incluiria — a presença deles prova que o upload passou por fora do git.
+>
+> **Este app tem 8 pastas e 5 níveis de import. A estrutura não é decoração —
+> é o que faz o `import` funcionar.** A única forma correta de publicar é
+> `git push`. Ver §3.
+
+Duas consequências menores do mesmo achatamento, que teriam quebrado o app
+mesmo se o `import` tivesse passado: `assets/logo.png` não subiu (o cabeçalho
+cairia na reserva tipográfica) e `.streamlit/config.toml` não subiu (a camada A
+do tema — acento, fundo e fonte — simplesmente não existiria).
+
+---
+
 ## 1. O que sobe para o GitHub
 
 **Sobe tudo o que está na pasta hoje, exceto o que o `.gitignore` já exclui.**
@@ -46,13 +74,17 @@ O que **não** sobe (já no `.gitignore`): `__pycache__/`, `.pytest_cache/`,
 
 ---
 
-## 2. O ajuste que decide se o deploy funciona
+## 2. A versão do Python — verificada em deploy real
 
 **`pandas 3.0.3` exige Python ≥ 3.11.**
 
-Ao criar o app no Streamlit Cloud, abra **"Advanced settings"** e escolha
-**Python 3.12** ou **3.13**. No padrão antigo (3.9) a instalação falha em
-`pandas` e o app não sobe.
+**Situação confirmada no deploy de 19/08/2026:** o Community Cloud usou
+**Python 3.14.7** e instalou as 45 dependências sem um único erro. O aviso
+abaixo continua valendo como regra, mas hoje o padrão da plataforma já a
+satisfaz — não foi este o passo que falhou.
+
+Ao criar o app, se **"Advanced settings"** oferecer escolha de versão, qualquer
+coisa **≥ 3.11** serve. Só recuse 3.9 e 3.10.
 
 Isso **não pode ser mudado depois** de criar o app — se errar, é mais rápido
 apagar e criar de novo do que tentar corrigir.
@@ -71,10 +103,30 @@ consistência com a regra da camada B, não porque o app dependa dessa versão.
 
 ## 3. Passo a passo
 
-### 3.1 Instalar o git
+### 3.1 O git que você já tem
 
-Não está instalado nesta máquina. Baixe em <https://git-scm.com/download/win> e
-instale com as opções padrão.
+Não há `git` no `PATH`, mas **o GitHub Desktop está instalado e traz um git
+completo** (versão 2.53.0). Ele resolve tudo, sem instalar nada:
+
+```powershell
+$git = "$env:LOCALAPPDATA\GitHubDesktop\app-3.5.12\resources\app\git\cmd\git.exe"
+& $git --version
+```
+
+> Ao atualizar o GitHub Desktop, o `app-3.5.12` do caminho muda. Para achar o
+> atual:
+> ```powershell
+> $git = (Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop\app-*\resources\app\git\cmd\git.exe" | Sort-Object FullName -Descending)[0].FullName
+> ```
+
+Se preferir o git de verdade no `PATH` — vale a pena, porque aí `git` funciona
+em qualquer terminal sem a variável:
+
+```powershell
+winget install --id Git.Git -e
+```
+
+Feche e reabra o terminal depois de instalar.
 
 ### 3.2 Uma decisão antes: tirar o projeto do OneDrive
 
@@ -94,23 +146,42 @@ cd $destino
 Se preferir manter no OneDrive, ao menos exclua a pasta `.git` da sincronização
 nas configurações do OneDrive.
 
-### 3.3 Criar o repositório
+### 3.3 O repositório local — já está pronto
+
+`git init`, `git add` e o commit **já foram feitos**, com o `origin` apontando
+para `joaobaciega/app-viabilidade-economica`. Confira antes de publicar:
 
 ```powershell
-git init
-git add .
-git status          # CONFIRA a lista antes de commitar
-git commit -m "Simulador de viabilidade de refil de palhetas"
+$git = "$env:LOCALAPPDATA\GitHubDesktop\app-3.5.12\resources\app\git\cmd\git.exe"
+& $git log --oneline -1
+& $git ls-tree -r HEAD --name-only    # 72 arquivos, COM as pastas
 ```
 
-Crie um repositório vazio no GitHub (**sem** README, `.gitignore` ou licença — o
-projeto já tem os dois primeiros) e conecte:
+A lista tem que mostrar `src/calculo.py`, `assets/logo.png` e
+`.streamlit/config.toml` **com a barra** — se algum aparecer sem pasta, a árvore
+está achatada de novo (ver §0).
+
+### 3.3.1 Sobrescrever o repositório achatado
+
+O repositório no GitHub hoje contém o dump achatado, com histórico próprio. O
+commit local não descende dele, então um `push` normal é recusado. Como não há
+nada no remoto que valha preservar — é um upload quebrado —, sobrescreva:
 
 ```powershell
-git branch -M main
-git remote add origin https://github.com/SEU-USUARIO/app-viabilidade-refil.git
-git push -u origin main
+$git = "$env:LOCALAPPDATA\GitHubDesktop\app-3.5.12\resources\app\git\cmd\git.exe"
+& $git push --force -u origin main
 ```
+
+Na primeira vez ele abre o navegador para você autorizar com a conta do GitHub.
+
+> **`--force` apaga o conteúdo atual do repositório remoto.** Aqui isso é o
+> objetivo, e é seguro porque o que está lá é o dump achatado de um dia. **Não
+> repita `--force` nos pushes seguintes** — depois desta vez, `git push` puro.
+
+Se preferir não usar `--force`: apague o repositório em *Settings → Danger Zone*
+no GitHub, crie um novo vazio com o mesmo nome (**sem** README, `.gitignore` ou
+licença) e rode `& $git push -u origin main`. O app do Streamlit reconecta,
+porque aponta para `usuário/nome`, não para o histórico.
 
 **Público ou privado?** O Community Cloud funciona com os dois. O repositório
 não contém tabela de preço nem custo — mas contém o `DESIGN.md`, que descreve a
@@ -118,11 +189,17 @@ estratégia comercial em detalhe. **Sugiro privado.**
 
 ### 3.4 Publicar
 
+**O app do Streamlit já existe** e já está apontado para o repositório certo.
+Depois do `push` da §3.3.1 ele **rebuilda sozinho** — não crie um app novo. Se
+demorar, abra <https://share.streamlit.io> e use **Reboot app** no menu do app.
+
+Para criar de novo a partir do zero, se algum dia precisar:
+
 1. <https://share.streamlit.io> → **New app** → **From existing repo**
-2. Repository: `SEU-USUARIO/app-viabilidade-refil`
+2. Repository: `joaobaciega/app-viabilidade-economica`
 3. Branch: `main`
 4. Main file path: **`app.py`**
-5. **Advanced settings → Python version: 3.13** ← o passo que mais falha
+5. **Advanced settings → Python version:** qualquer ≥ 3.11 (ver §2)
 6. **Deploy**
 
 A primeira subida instala as dependências e leva alguns minutos. Depois disso,
@@ -132,7 +209,13 @@ A primeira subida instala as dependências e leva alguns minutos. Depois disso,
 
 ## 4. Depois de publicar
 
+- [ ] No GitHub, confira que a raiz mostra **pastas** (`src`, `assets`, `docs`,
+      `dados`, `pipeline`, `testes`) e **não** dezenas de `.py` soltos
+- [ ] Confira que **não há nenhum `.pyc`** no repositório — se houver, o upload
+      passou por fora do git (§0)
 - [ ] Abra o link e confira que a **Tela 1 carrega inteira**
+- [ ] Confirme que o **logo aparece** no cabeçalho. Reserva tipográfica no lugar
+      dele significa que `assets/` não subiu
 - [ ] Rode os 5 itens manuais do `python verificar.py` na tela publicada — em
       especial o **teste de um metro**, que nenhum comando substitui
 - [ ] Confirme que **nenhuma marca do Streamlit** aparece (menu, rodapé, Deploy)
@@ -150,12 +233,15 @@ minutos antes de entrar na concessionária é requisito de operação, não suge
 O snapshot é um arquivo no repositório, então publicar dado é um commit:
 
 ```powershell
+$git = "$env:LOCALAPPDATA\GitHubDesktop\app-3.5.12\resources\app\git\cmd\git.exe"
 python -m pipeline.publicar --conferir    # valida sem publicar
 python -m pipeline.publicar               # gera dados/snapshot/snapshot_vN.json
-git add dados/snapshot
-git commit -m "snapshot vN: <marcas incluídas>"
-git push
+& $git add dados/snapshot
+& $git commit -m "snapshot vN: <marcas incluídas>"
+& $git push
 ```
+
+(Se você instalou o git pelo `winget`, use `git` direto, sem a variável.)
 
 O build **reprova** se qualquer validação S1–S13 falhar, e nada é publicado. Isso
 é deliberado: um erro claro aqui vale mais que uma tela quebrada na frente do
