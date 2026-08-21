@@ -44,8 +44,13 @@ $RECYCLE.BIN/
 # ---------------------------------------------------------------------------
 # O que FICA no repositório, e por quê — para ninguém apagar por engano
 # ---------------------------------------------------------------------------
-# dados/snapshot/*.json      o app lê o snapshot publicado. Sem ele as Telas 2 e
-#                            3 mostram "nenhum snapshot publicado"
+# dados/snapshot/*.json      o app lê o snapshot publicado. Sem ele a Tela 3
+#                            mostra "nenhum snapshot publicado"
+# dados/emplacamentos.json   a base da Tela 2. Sem ela a aba "Mais vendidos"
+#                            cai no estado vazio no deploy. Regerar com
+#                            python -m pipeline.gerar_emplacamentos
+# emplacamentos_brasil_base.xlsx  a fonte da linha acima, com a aba `fontes`
+#                            que registra método, cobertura e o que falta
 # dados/planilha_modelo.xlsx o formato da curadoria da Fase 0
 # assets/logo*.png           a marca. Ver assets/LEIA-ME.md
 # assets/originais/          os arquivos que o cliente entregou, como procedência

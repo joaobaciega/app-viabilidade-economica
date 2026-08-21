@@ -1,0 +1,904 @@
+{
+  "schema_versao": 1,
+  "criterio": "Emplacamentos totais (varejo + venda direta/frota), automóveis e comerciais leves, base Fenabrave. Ranking interno da marca por emplacamentos acumulados jan-jul/2026. variacao_pct = jan-jul/2026 vs jan-jul/2025 (mesma janela nos dois anos).",
+  "fonte": "Fenabrave - Informativo de Emplacamentos: Ed. 283 jul/2026 (col. emplacamentos_2026_ytd), Ed. 271 jul/2025 (col. emplacamentos_2025_ytd), Ed. 276 dez/2025 (col. emplacamentos_2025)",
+  "url": "https://www.fenabrave.org.br/portal/files/2026_07_02.pdf",
+  "data_consulta": "2026-08-20",
+  "janelas": {
+    "atual": "jan–jul/2026",
+    "anterior": "jan–jul/2025",
+    "fechado": "ano 2025"
+  },
+  "marcas": {
+    "BYD": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 120.911 das 122.475 unidades da marca no acumulado jan-jul/2026 (98.72%). resíduo não aberto por modelo de 1.564 un.",
+      "modelos": [
+        {
+          "modelo": "Dolphin Mini",
+          "categoria": "hatch",
+          "posicao": 1,
+          "atual": 42930,
+          "anterior": 16221,
+          "fechado": 32459,
+          "variacao": 1.64656926206769,
+          "nota": ""
+        },
+        {
+          "modelo": "Song",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 38352,
+          "anterior": 20647,
+          "fechado": 42181,
+          "variacao": 0.857509565554318,
+          "nota": "A Fenabrave publica o Song em linha única; tabulações de imprensa separam Song Pro e Song Plus DM-i. Mantido o recorte da Fenabrave."
+        },
+        {
+          "modelo": "Dolphin",
+          "categoria": "hatch",
+          "posicao": 3,
+          "atual": 24533,
+          "anterior": 7586,
+          "fechado": 15216,
+          "variacao": 2.23398365409966,
+          "nota": ""
+        },
+        {
+          "modelo": "King",
+          "categoria": "sedã",
+          "posicao": 4,
+          "atual": 9801,
+          "anterior": 7217,
+          "fechado": 12402,
+          "variacao": 0.358043508382985,
+          "nota": ""
+        },
+        {
+          "modelo": "Yuan",
+          "categoria": "SUV",
+          "posicao": 5,
+          "atual": 4076,
+          "anterior": 3230,
+          "fechado": 6019,
+          "variacao": 0.261919504643963,
+          "nota": ""
+        }
+      ]
+    },
+    "CAOA Chery": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 44.360 das 44.367 unidades da marca no acumulado jan-jul/2026 (99.98%). resíduo não aberto por modelo de 7 un.",
+      "modelos": [
+        {
+          "modelo": "Tiggo 5X",
+          "categoria": "SUV",
+          "posicao": 1,
+          "atual": 19634,
+          "anterior": 7046,
+          "fechado": 13670,
+          "variacao": 1.78654555776327,
+          "nota": ""
+        },
+        {
+          "modelo": "Tiggo 7",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 16640,
+          "anterior": 17904,
+          "fechado": 38438,
+          "variacao": -0.0705987488829312,
+          "nota": ""
+        },
+        {
+          "modelo": "Tiggo 8",
+          "categoria": "SUV",
+          "posicao": 3,
+          "atual": 8014,
+          "anterior": 8907,
+          "fechado": 17883,
+          "variacao": -0.100258223868867,
+          "nota": ""
+        },
+        {
+          "modelo": "Arrizo 6",
+          "categoria": "sedã",
+          "posicao": 4,
+          "atual": 72,
+          "anterior": 1116,
+          "fechado": 1436,
+          "variacao": -0.935483870967742,
+          "nota": "A marca tem apenas 4 modelos com número publicado, e eles cobrem 99,98% do total da marca: a lista de 5 modelos não existe na fonte e não foi completada."
+        }
+      ]
+    },
+    "Chevrolet": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 165.454 das 169.927 unidades da marca no acumulado jan-jul/2026 (97.37%). resíduo não aberto por modelo de 4.473 un.",
+      "modelos": [
+        {
+          "modelo": "Onix",
+          "categoria": "hatch",
+          "posicao": 1,
+          "atual": 54421,
+          "anterior": 42078,
+          "fechado": 79886,
+          "variacao": 0.293336185179904,
+          "nota": "A Fenabrave imprime a marca como GM; Onix e Onix Plus são linhas separadas na fonte e a separação foi mantida."
+        },
+        {
+          "modelo": "Tracker",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 34805,
+          "anterior": 34212,
+          "fechado": 60867,
+          "variacao": 0.0173330994972525,
+          "nota": ""
+        },
+        {
+          "modelo": "Onix Plus",
+          "categoria": "sedã",
+          "posicao": 3,
+          "atual": 23921,
+          "anterior": 24667,
+          "fechado": 52958,
+          "variacao": -0.0302428345562897,
+          "nota": "Linha separada do Onix hatch na fonte; separação mantida."
+        },
+        {
+          "modelo": "S10",
+          "categoria": "picape",
+          "posicao": 4,
+          "atual": 17570,
+          "anterior": 16429,
+          "fechado": 31451,
+          "variacao": 0.0694503621644653,
+          "nota": ""
+        },
+        {
+          "modelo": "Spin",
+          "categoria": "minivan",
+          "posicao": 5,
+          "atual": 11678,
+          "anterior": 12290,
+          "fechado": 22741,
+          "variacao": -0.0497965825874694,
+          "nota": "Classificado pela Fenabrave no segmento Grandcab."
+        }
+      ]
+    },
+    "Fiat": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 319.935 das 319.959 unidades da marca no acumulado jan-jul/2026 (99.99%). resíduo não aberto por modelo de 24 un.",
+      "modelos": [
+        {
+          "modelo": "Strada",
+          "categoria": "picape",
+          "posicao": 1,
+          "atual": 97941,
+          "anterior": 75592,
+          "fechado": 142891,
+          "variacao": 0.295652979151233,
+          "nota": "Ed. 283 traz 97.941 no ranking geral de comerciais leves e 97.938 na tabela do segmento Pick-up's Pequenas; adotado o ranking geral."
+        },
+        {
+          "modelo": "Argo",
+          "categoria": "hatch",
+          "posicao": 2,
+          "atual": 54641,
+          "anterior": 54432,
+          "fechado": 102630,
+          "variacao": 0.00383965314520873,
+          "nota": ""
+        },
+        {
+          "modelo": "Mobi",
+          "categoria": "hatch",
+          "posicao": 3,
+          "atual": 38685,
+          "anterior": 41329,
+          "fechado": 73011,
+          "variacao": -0.0639744489341625,
+          "nota": ""
+        },
+        {
+          "modelo": "Toro",
+          "categoria": "picape",
+          "posicao": 4,
+          "atual": 31696,
+          "anterior": 27317,
+          "fechado": 52129,
+          "variacao": 0.160303107954753,
+          "nota": ""
+        },
+        {
+          "modelo": "Pulse",
+          "categoria": "SUV",
+          "posicao": 5,
+          "atual": 30154,
+          "anterior": 25099,
+          "fechado": 44426,
+          "variacao": 0.201402446312602,
+          "nota": ""
+        }
+      ]
+    },
+    "Ford": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 31.010 das 32.421 unidades da marca no acumulado jan-jul/2026 (95.65%). resíduo não aberto por modelo de 1.411 un.",
+      "modelos": [
+        {
+          "modelo": "Ranger",
+          "categoria": "picape",
+          "posicao": 1,
+          "atual": 20370,
+          "anterior": 19074,
+          "fechado": 34047,
+          "variacao": 0.0679458949355143,
+          "nota": ""
+        },
+        {
+          "modelo": "Territory",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 5666,
+          "anterior": 3233,
+          "fechado": 8876,
+          "variacao": 0.752551809464893,
+          "nota": ""
+        },
+        {
+          "modelo": "Maverick",
+          "categoria": "picape",
+          "posicao": 3,
+          "atual": 2607,
+          "anterior": 1587,
+          "fechado": 4051,
+          "variacao": 0.642722117202268,
+          "nota": ""
+        },
+        {
+          "modelo": "Transit",
+          "categoria": "comercial leve",
+          "posicao": 4,
+          "atual": 1402,
+          "anterior": 1639,
+          "fechado": 2646,
+          "variacao": -0.144600366076876,
+          "nota": ""
+        },
+        {
+          "modelo": "F-150",
+          "categoria": "picape",
+          "posicao": 5,
+          "atual": 702,
+          "anterior": 678,
+          "fechado": 1200,
+          "variacao": 0.0353982300884956,
+          "nota": ""
+        }
+      ]
+    },
+    "GWM": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 42.210 das 44.515 unidades da marca no acumulado jan-jul/2026 (94.82%). resíduo não aberto por modelo de 2.305 un.",
+      "modelos": [
+        {
+          "modelo": "Haval H6",
+          "categoria": "SUV",
+          "posicao": 1,
+          "atual": 25809,
+          "anterior": 16012,
+          "fechado": 31964,
+          "variacao": 0.611853609792656,
+          "nota": ""
+        },
+        {
+          "modelo": "Haval H9",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 7125,
+          "anterior": null,
+          "fechado": 2205,
+          "variacao": null,
+          "nota": "Modelo lançado no 2º semestre de 2025: não consta no acumulado jan-jul/2025 da Ed. 271, por isso a célula de 2025_ytd está vazia e variacao_pct não foi calculada."
+        },
+        {
+          "modelo": "Poer",
+          "categoria": "picape",
+          "posicao": 3,
+          "atual": 3921,
+          "anterior": null,
+          "fechado": 1280,
+          "variacao": null,
+          "nota": "Não consta no acumulado jan-jul/2025 da Ed. 271 (a tabela de Pick-up's Grandes encerra na 11ª posição); célula de 2025_ytd vazia, sem estimativa."
+        },
+        {
+          "modelo": "Tank 300",
+          "categoria": "SUV",
+          "posicao": 4,
+          "atual": 3209,
+          "anterior": 1613,
+          "fechado": 3514,
+          "variacao": 0.989460632362058,
+          "nota": ""
+        },
+        {
+          "modelo": "Ora 03",
+          "categoria": "hatch",
+          "posicao": 5,
+          "atual": 2146,
+          "anterior": 1560,
+          "fechado": 3237,
+          "variacao": 0.375641025641026,
+          "nota": ""
+        }
+      ]
+    },
+    "Honda": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 63.124 das 63.350 unidades da marca no acumulado jan-jul/2026 (99.64%). resíduo não aberto por modelo de 226 un.",
+      "modelos": [
+        {
+          "modelo": "HR-V",
+          "categoria": "SUV",
+          "posicao": 1,
+          "atual": 26366,
+          "anterior": 36086,
+          "fechado": 61227,
+          "variacao": -0.269356537161226,
+          "nota": ""
+        },
+        {
+          "modelo": "WR-V",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 20706,
+          "anterior": null,
+          "fechado": 4588,
+          "variacao": null,
+          "nota": "Modelo lançado no 2º semestre de 2025: não consta no acumulado jan-jul/2025 da Ed. 271, por isso a célula de 2025_ytd está vazia e variacao_pct não foi calculada."
+        },
+        {
+          "modelo": "City",
+          "categoria": "sedã",
+          "posicao": 3,
+          "atual": 8902,
+          "anterior": 9927,
+          "fechado": 17782,
+          "variacao": -0.103253752392465,
+          "nota": "Linha separada do City hatch na fonte; separação mantida."
+        },
+        {
+          "modelo": "City Hatch",
+          "categoria": "hatch",
+          "posicao": 4,
+          "atual": 7079,
+          "anterior": 8826,
+          "fechado": 15761,
+          "variacao": -0.197937910718332,
+          "nota": "Linha separada do City sedã na fonte; separação mantida."
+        },
+        {
+          "modelo": "Civic",
+          "categoria": "sedã",
+          "posicao": 5,
+          "atual": 34,
+          "anterior": 999,
+          "fechado": 1124,
+          "variacao": -0.965965965965966,
+          "nota": ""
+        }
+      ]
+    },
+    "Hyundai": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 109.411 das 109.987 unidades da marca no acumulado jan-jul/2026 (99.48%). resíduo não aberto por modelo de 576 un.",
+      "modelos": [
+        {
+          "modelo": "HB20",
+          "categoria": "hatch",
+          "posicao": 1,
+          "atual": 41966,
+          "anterior": 42392,
+          "fechado": 85029,
+          "variacao": -0.0100490658614834,
+          "nota": ""
+        },
+        {
+          "modelo": "Creta",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 41805,
+          "anterior": 39032,
+          "fechado": 76156,
+          "variacao": 0.0710442713670834,
+          "nota": ""
+        },
+        {
+          "modelo": "HB20S",
+          "categoria": "sedã",
+          "posicao": 3,
+          "atual": 22214,
+          "anterior": 17569,
+          "fechado": 36947,
+          "variacao": 0.264386134669019,
+          "nota": "Linha separada do HB20 hatch na fonte; separação mantida."
+        },
+        {
+          "modelo": "i20",
+          "categoria": "hatch",
+          "posicao": 4,
+          "atual": 3344,
+          "anterior": null,
+          "fechado": null,
+          "variacao": null,
+          "nota": "Não consta nas tabelas de segmento nem no ranking de modelos da Ed. 271 nem da Ed. 276; células de 2025 deixadas vazias por ausência de dado publicado, sem estimativa."
+        },
+        {
+          "modelo": "HR",
+          "categoria": "comercial leve",
+          "posicao": 5,
+          "atual": 82,
+          "anterior": 2282,
+          "fechado": 2996,
+          "variacao": -0.964066608238387,
+          "nota": ""
+        }
+      ]
+    },
+    "Iveco": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 3.105 das 3.106 unidades da marca no acumulado jan-jul/2026 (99.97%). resíduo não aberto por modelo de 1 un.",
+      "modelos": [
+        {
+          "modelo": "Daily",
+          "categoria": "comercial leve",
+          "posicao": 1,
+          "atual": 1522,
+          "anterior": 1579,
+          "fechado": 2828,
+          "variacao": -0.0360987967067764,
+          "nota": "A fonte separa variantes do Daily em linhas diferentes (Daily, Daily 30-130, Daily 35-180); separação mantida, nada foi consolidado."
+        },
+        {
+          "modelo": "Daily 30-130",
+          "categoria": "comercial leve",
+          "posicao": 2,
+          "atual": 1491,
+          "anterior": 1048,
+          "fechado": 2129,
+          "variacao": 0.422709923664122,
+          "nota": "A fonte separa variantes do Daily em linhas diferentes; separação mantida."
+        },
+        {
+          "modelo": "Daily 35-180",
+          "categoria": "comercial leve",
+          "posicao": 3,
+          "atual": 92,
+          "anterior": 114,
+          "fechado": 180,
+          "variacao": -0.192982456140351,
+          "nota": "A fonte separa variantes do Daily em linhas diferentes; separação mantida."
+        }
+      ]
+    },
+    "Jeep": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 65.374 das 65.540 unidades da marca no acumulado jan-jul/2026 (99.75%). resíduo não aberto por modelo de 166 un.",
+      "modelos": [
+        {
+          "modelo": "Compass",
+          "categoria": "SUV",
+          "posicao": 1,
+          "atual": 31886,
+          "anterior": 32466,
+          "fechado": 61255,
+          "variacao": -0.0178648432206,
+          "nota": ""
+        },
+        {
+          "modelo": "Renegade",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 23989,
+          "anterior": 24377,
+          "fechado": 44793,
+          "variacao": -0.0159166427370062,
+          "nota": ""
+        },
+        {
+          "modelo": "Commander",
+          "categoria": "SUV",
+          "posicao": 3,
+          "atual": 9499,
+          "anterior": 8530,
+          "fechado": 17786,
+          "variacao": 0.113599062133646,
+          "nota": ""
+        }
+      ]
+    },
+    "Mitsubishi": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 11.711 das 12.398 unidades da marca no acumulado jan-jul/2026 (94.46%). resíduo não aberto por modelo de 687 un.",
+      "modelos": [
+        {
+          "modelo": "Triton",
+          "categoria": "picape",
+          "posicao": 1,
+          "atual": 7243,
+          "anterior": 4851,
+          "fechado": 11719,
+          "variacao": 0.493094207379922,
+          "nota": ""
+        },
+        {
+          "modelo": "Eclipse Cross",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 4382,
+          "anterior": 5369,
+          "fechado": 10032,
+          "variacao": -0.183833116036506,
+          "nota": ""
+        },
+        {
+          "modelo": "L200",
+          "categoria": "picape",
+          "posicao": 3,
+          "atual": 86,
+          "anterior": 4250,
+          "fechado": 3561,
+          "variacao": -0.979764705882353,
+          "nota": "Inconsistência na própria fonte: o acumulado jan-jul/2025 (4.250, Ed. 271) é MAIOR que o ano fechado de 2025 (3.561, Ed. 276), o que indica reclassificação de unidades entre L200 e Triton ao longo de 2025. Os dois números foram mantidos como publicados, sem correção."
+        }
+      ]
+    },
+    "Nissan": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 43.494 das 43.497 unidades da marca no acumulado jan-jul/2026 (99.99%). resíduo não aberto por modelo de 3 un.",
+      "modelos": [
+        {
+          "modelo": "Kicks",
+          "categoria": "SUV",
+          "posicao": 1,
+          "atual": 19797,
+          "anterior": 29530,
+          "fechado": 58388,
+          "variacao": -0.329597019979682,
+          "nota": ""
+        },
+        {
+          "modelo": "Kait",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 18098,
+          "anterior": null,
+          "fechado": null,
+          "variacao": null,
+          "nota": "Modelo lançado em 2026: não consta na Ed. 271 nem na Ed. 276; células de 2025 vazias por ausência de dado, sem estimativa."
+        },
+        {
+          "modelo": "Versa",
+          "categoria": "sedã",
+          "posicao": 3,
+          "atual": 4241,
+          "anterior": 6297,
+          "fechado": 9261,
+          "variacao": -0.326504684770526,
+          "nota": "Ed. 283 lista 4.241 em Sedans Compactos e 1 unidade sob o mesmo nome em Sedans Pequenos; adotado o valor do ranking geral (4.241)."
+        },
+        {
+          "modelo": "Frontier",
+          "categoria": "picape",
+          "posicao": 4,
+          "atual": 1002,
+          "anterior": 4179,
+          "fechado": 5091,
+          "variacao": -0.760229720028715,
+          "nota": ""
+        },
+        {
+          "modelo": "Sentra",
+          "categoria": "sedã",
+          "posicao": 5,
+          "atual": 355,
+          "anterior": 2916,
+          "fechado": 4927,
+          "variacao": -0.878257887517147,
+          "nota": ""
+        }
+      ]
+    },
+    "Omoda Jaecoo": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 21.221 das 22.561 unidades da marca no acumulado jan-jul/2026 (94.06%). resíduo não aberto por modelo de 1.340 un.",
+      "modelos": [
+        {
+          "modelo": "Omoda 5",
+          "categoria": "SUV",
+          "posicao": 1,
+          "atual": 11738,
+          "anterior": null,
+          "fechado": null,
+          "variacao": null,
+          "nota": "A Fenabrave não publica este modelo em 2025 (a tabela de Suv's da Ed. 271 encerra na 40ª posição e a Ed. 276 também não o lista); células de 2025 vazias, sem estimativa. A Fenabrave trata Omoda e Jaecoo como marca única."
+        },
+        {
+          "modelo": "Jaecoo 7",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 9483,
+          "anterior": 1312,
+          "fechado": 4919,
+          "variacao": 6.22789634146341,
+          "nota": "Marca com apenas 2 modelos publicados, cobrindo 94,1% do total da marca; os demais modelos da linha não têm número publicado e não foram estimados."
+        }
+      ]
+    },
+    "Peugeot": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 9.974 das 9.983 unidades da marca no acumulado jan-jul/2026 (99.91%). resíduo não aberto por modelo de 9 un.",
+      "modelos": [
+        {
+          "modelo": "2008",
+          "categoria": "SUV",
+          "posicao": 1,
+          "atual": 4712,
+          "anterior": 7564,
+          "fechado": 11312,
+          "variacao": -0.377049180327869,
+          "nota": ""
+        },
+        {
+          "modelo": "208",
+          "categoria": "hatch",
+          "posicao": 2,
+          "atual": 3299,
+          "anterior": 5067,
+          "fechado": 9809,
+          "variacao": -0.348924412867575,
+          "nota": ""
+        },
+        {
+          "modelo": "Expert",
+          "categoria": "comercial leve",
+          "posicao": 3,
+          "atual": 1354,
+          "anterior": 463,
+          "fechado": 1157,
+          "variacao": 1.9244060475162,
+          "nota": ""
+        },
+        {
+          "modelo": "Boxer",
+          "categoria": "comercial leve",
+          "posicao": 4,
+          "atual": 313,
+          "anterior": 168,
+          "fechado": 307,
+          "variacao": 0.863095238095238,
+          "nota": ""
+        },
+        {
+          "modelo": "Partner",
+          "categoria": "comercial leve",
+          "posicao": 5,
+          "atual": 296,
+          "anterior": 300,
+          "fechado": 526,
+          "variacao": -0.0133333333333333,
+          "nota": ""
+        }
+      ]
+    },
+    "RAM": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 18.119 das 18.119 unidades da marca no acumulado jan-jul/2026 (100.00%). resíduo não aberto por modelo de 0 un.",
+      "modelos": [
+        {
+          "modelo": "Rampage",
+          "categoria": "picape",
+          "posicao": 1,
+          "atual": 14349,
+          "anterior": 13403,
+          "fechado": 26135,
+          "variacao": 0.0705812131612327,
+          "nota": ""
+        },
+        {
+          "modelo": "Dakota",
+          "categoria": "picape",
+          "posicao": 2,
+          "atual": 2566,
+          "anterior": null,
+          "fechado": null,
+          "variacao": null,
+          "nota": "Modelo lançado em 2026: não consta na Ed. 271 nem na Ed. 276; células de 2025 vazias por ausência de dado, sem estimativa."
+        },
+        {
+          "modelo": "3500",
+          "categoria": "picape",
+          "posicao": 3,
+          "atual": 607,
+          "anterior": 1000,
+          "fechado": 1406,
+          "variacao": -0.393,
+          "nota": "A fonte separa as variantes 1500, 2500 e 3500 em linhas diferentes; separação mantida."
+        },
+        {
+          "modelo": "2500",
+          "categoria": "picape",
+          "posicao": 4,
+          "atual": 462,
+          "anterior": 492,
+          "fechado": 703,
+          "variacao": -0.0609756097560976,
+          "nota": "A fonte separa as variantes 1500, 2500 e 3500 em linhas diferentes; separação mantida."
+        },
+        {
+          "modelo": "1500",
+          "categoria": "picape",
+          "posicao": 5,
+          "atual": 135,
+          "anterior": 951,
+          "fechado": 1181,
+          "variacao": -0.858044164037855,
+          "nota": "A fonte separa as variantes 1500, 2500 e 3500 em linhas diferentes; separação mantida."
+        }
+      ]
+    },
+    "Renault": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 74.241 das 74.499 unidades da marca no acumulado jan-jul/2026 (99.65%). resíduo não aberto por modelo de 258 un.",
+      "modelos": [
+        {
+          "modelo": "Kwid",
+          "categoria": "hatch",
+          "posicao": 1,
+          "atual": 34946,
+          "anterior": 30105,
+          "fechado": 58970,
+          "variacao": 0.160803853180535,
+          "nota": "A fonte lista também RENAULT/E-KWID (234 un. em jan-jul/2026) e uma versão furgão do Kwid (14 un.) como linhas separadas; a separação da fonte foi mantida e essas linhas não foram somadas aqui."
+        },
+        {
+          "modelo": "Kardian",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 8642,
+          "anterior": 11616,
+          "fechado": 19349,
+          "variacao": -0.256026170798898,
+          "nota": ""
+        },
+        {
+          "modelo": "Duster",
+          "categoria": "SUV",
+          "posicao": 3,
+          "atual": 8211,
+          "anterior": 10450,
+          "fechado": 18448,
+          "variacao": -0.214258373205742,
+          "nota": ""
+        },
+        {
+          "modelo": "Boreal",
+          "categoria": "SUV",
+          "posicao": 4,
+          "atual": 7009,
+          "anterior": null,
+          "fechado": 2194,
+          "variacao": null,
+          "nota": "Modelo lançado no 2º semestre de 2025: não consta no acumulado jan-jul/2025 da Ed. 271, por isso a célula de 2025_ytd está vazia e variacao_pct não foi calculada."
+        },
+        {
+          "modelo": "Master",
+          "categoria": "comercial leve",
+          "posicao": 5,
+          "atual": 6742,
+          "anterior": 9164,
+          "fechado": 15771,
+          "variacao": -0.264295067656045,
+          "nota": "Divergências internas na Fenabrave: Ed. 283 6.742 (ranking geral) vs 6.734 (segmento); Ed. 271 9.164 vs 9.158; Ed. 276 15.771 vs 15.760. Adotado o ranking geral nos três casos."
+        }
+      ]
+    },
+    "Toyota": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 93.491 das 95.254 unidades da marca no acumulado jan-jul/2026 (98.15%). resíduo não aberto por modelo de 1.763 un.",
+      "modelos": [
+        {
+          "modelo": "Hilux",
+          "categoria": "picape",
+          "posicao": 1,
+          "atual": 26732,
+          "anterior": 28521,
+          "fechado": 49721,
+          "variacao": -0.0627257108797027,
+          "nota": ""
+        },
+        {
+          "modelo": "Corolla Cross",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 22299,
+          "anterior": 36955,
+          "fechado": 59674,
+          "variacao": -0.39659044784197,
+          "nota": ""
+        },
+        {
+          "modelo": "Yaris Cross",
+          "categoria": "SUV",
+          "posicao": 3,
+          "atual": 20669,
+          "anterior": null,
+          "fechado": null,
+          "variacao": null,
+          "nota": "Não consta nas tabelas de segmento nem no ranking de modelos da Ed. 271 nem da Ed. 276; células de 2025 deixadas vazias por ausência de dado publicado, sem estimativa."
+        },
+        {
+          "modelo": "Corolla",
+          "categoria": "sedã",
+          "posicao": 4,
+          "atual": 14686,
+          "anterior": 21566,
+          "fechado": 33170,
+          "variacao": -0.319020680701104,
+          "nota": "Ed. 283: 14.686 no ranking geral vs 14.685 na tabela do segmento Sedans médios; adotado o ranking geral."
+        },
+        {
+          "modelo": "Hilux SW4",
+          "categoria": "SUV",
+          "posicao": 5,
+          "atual": 7737,
+          "anterior": 9807,
+          "fechado": 17056,
+          "variacao": -0.211073722851025,
+          "nota": "Classificado pela Fenabrave no segmento Suv's, não em picapes."
+        }
+      ]
+    },
+    "Volkswagen": {
+      "cobertura": "os modelos com número Fenabrave publicado somam 263.830 das 266.877 unidades da marca no acumulado jan-jul/2026 (98.86%). resíduo não aberto por modelo de 3.047 un.",
+      "modelos": [
+        {
+          "modelo": "Polo",
+          "categoria": "hatch",
+          "posicao": 1,
+          "atual": 64431,
+          "anterior": 70155,
+          "fechado": 122672,
+          "variacao": -0.081590763309814,
+          "nota": ""
+        },
+        {
+          "modelo": "T-Cross",
+          "categoria": "SUV",
+          "posicao": 2,
+          "atual": 55118,
+          "anterior": 53551,
+          "fechado": 92837,
+          "variacao": 0.0292618251760004,
+          "nota": ""
+        },
+        {
+          "modelo": "Tera",
+          "categoria": "SUV",
+          "posicao": 3,
+          "atual": 51585,
+          "anterior": 5994,
+          "fechado": 48139,
+          "variacao": 7.60610610610611,
+          "nota": "Modelo lançado em 2025; o acumulado jan-jul/2025 (5.994) cobre poucos meses de venda, o que infla a variacao_pct."
+        },
+        {
+          "modelo": "Nivus",
+          "categoria": "SUV",
+          "posicao": 4,
+          "atual": 32235,
+          "anterior": 28375,
+          "fechado": 48690,
+          "variacao": 0.136035242290749,
+          "nota": "Classificado pela Fenabrave no segmento Suv's."
+        },
+        {
+          "modelo": "Saveiro",
+          "categoria": "picape",
+          "posicao": 5,
+          "atual": 28588,
+          "anterior": 34843,
+          "fechado": 67752,
+          "variacao": -0.179519559165399,
+          "nota": "Divergências internas na própria Fenabrave: Ed. 283 28.588 (ranking geral) vs 28.587 (segmento); Ed. 276 67.752 (ranking geral) vs 67.751 (segmento). Adotado o ranking geral nos dois casos."
+        }
+      ]
+    }
+  }
+}

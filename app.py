@@ -68,12 +68,16 @@ def main() -> None:
     if tela == "mais_vendidos":
         from src.telas import tela2_mais_vendidos
 
+        # A Tela 2 desenha a propria faixa do vendedor, como a Tela 1. Ela nao
+        # le o snapshot: a base de emplacamentos e um dado proprio, e herdar
+        # aqui o rotulo do snapshot faria o rodape dizer "nenhum snapshot
+        # publicado" embaixo de numeros reais na tela.
         tela2_mais_vendidos.renderizar()
-        linhas: list[str] = []
-    else:
-        from src.telas import tela3_preco_original
+        return
 
-        linhas = tela3_preco_original.renderizar()
+    from src.telas import tela3_preco_original
+
+    linhas = tela3_preco_original.renderizar()
 
     from src.dados.carregar_snapshot import carregar
 
