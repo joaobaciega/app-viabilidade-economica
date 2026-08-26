@@ -206,6 +206,29 @@ porque ela troca uma pergunta desconfortável por uma premissa favorável.
 | Por que é seguro | §10-G diz *"ausência não promete nada"* — e a decisão G continua **visível onde vale algo**: no bloco "menos código na prateleira" da Tela 3, que é onde o número faria diferença comercial |
 | Travado por | `test_render_bloco_de_investimento_ausente` (nenhum campo **e** nenhuma menção na Tela 1) e a verificação de navegador, que confirma "decisão G" na Tela 3 |
 
+### D18 — Tela 3: as 18 marcas no menu, e "—" no lugar do valor não coletado
+
+| | |
+|---|---|
+| O que o cliente pediu | "Um menu suspenso bem em evidência com todas as marcas disponíveis… para os modelos que não têm dados, deixe a estrutura pronta e adicione um `-` no lugar" |
+| O que o projeto dizia | Duas regras em sentido contrário. Plano §7 Fase 2: *"o app mostra APENAS marcas com dados"* — `carregar_emplacamentos.nomes_de_marca` filtra marca sem modelo, e a Tela 2 nunca lista marca vazia. E `estado_vazio_catalogo.py`: *"não há travessão no lugar de valor"*; a Tela 2 escreve **"não publicado"** por extenso porque *"um travessão pareceria defeito de layout"* |
+| O que foi feito | O seletor da Tela 3 lista as **18 marcas** da base `app_precos`, inclusive as 17 sem coleta. O cartão de um modelo sem preço mantém **os rótulos de pé** — `Dianteiro · por par`, `Traseiro · por unidade`, `Veículo completo` — com **"—"** no lugar do número |
+| Por que é seguro aqui e não era na Tela 2 | Na Tela 2 o travessão substituiria um número **que existe na fonte**; aqui ele marca um campo **que ainda não foi coletado**, e o rótulo ao lado é a informação: o gerente vê quais campos o produto entrega para a marca dele. A coleta cobre 5 de 80 modelos, então o estado "ainda não coletado" é o caso **dominante**, não a exceção |
+| A regra que **não** mudou | Plano §2.4, inteira: **nenhum preço estimado, nenhum preço de vendedor terceiro chamado de original.** "Uma linha inventada destrói as outras 200." Célula vazia vira `null` no pipeline e `None` no leitor, **nunca zero** |
+| Consequência declarada | O rodapé de procedência **sempre** diz a cobertura ("5 de 5 modelos de Fiat · 5 de 80 no total"), e a marca sem coleta ganha a frase explícita de que ainda não passou pela loja oficial. O número nunca aparece sozinho quando falta modelo dentro dele — a mesma regra dos totais da Tela 2 |
+| Travado por | `testes/test_precos.py`: `test_o_seletor_lista_as_18_marcas_inclusive_as_sem_preco`, `test_marca_sem_coleta_mostra_a_estrutura_com_travessao`, `test_preco_vazio_vira_null_e_nunca_zero`, `test_sem_preco_da_original_nao_ha_economia` |
+
+### D19 — Tela 3: nada além do menu antes da escolha da marca
+
+| | |
+|---|---|
+| O que o cliente pediu | "Não aparecerá nada além do menu quando nenhuma marca estiver selecionada" |
+| O que o projeto fazia | A Tela 2 mostra um **convite** com os nomes das marcas em chips antes da escolha, e a Tela 3 anterior mostrava o bloco "menos código na prateleira" e os campos de refil já na carga |
+| O que foi feito | Sem marca escolhida a Tela 3 tem **só o título da seção e o seletor**. Sem convite, sem chips, sem campos de preço, sem o bloco "menos código" |
+| A tensão que isso criou | O cabeçalho de `tela3_preco_original.py` fixa que o bloco "menos código na prateleira" fica **no topo, acima dos cartões**, porque é o argumento mais forte do produto (plano §2.5) e não pode virar nota de rodapé |
+| Como foi reconciliado | O bloco continua **acima dos cartões** — só passa a aparecer **junto** com eles, depois da escolha. As duas regras valem ao mesmo tempo, e nenhuma foi enfraquecida |
+| Travado por | `test_sem_marca_escolhida_nao_aparece_nada_alem_do_menu`, `test_o_menu_abre_vazio_com_as_18_marcas` |
+
 ### D4 — Vermelho não é usado em filete de seção *(revogada por D5)*
 
 Registro para rastreabilidade: na rodada anterior os filetes de seção usavam
@@ -236,6 +259,7 @@ escopo desta entrega exige.
 | +16 | `SeloProcedencia` | plano §5.3 | **Provisório** |
 | +17 | `EstadoVazioCatalogo` | plano §7 Fase 2 | **Provisório** |
 | +18 | `ExportadorPDF` | plano §3.8, §6.1, §7 Fase 3 | Pedido para esta entrega |
+| +19 | `CartaoPrecoPalheta` | plano §5.1, §5.3 — base `app_precos` | **Provisório** até o DESIGN ser regerado para a Tela 3 |
 
 ### As duas famílias de validação
 

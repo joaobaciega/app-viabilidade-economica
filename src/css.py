@@ -382,6 +382,24 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   border-color: var(--marca) !important;
   box-shadow: 0 0 0 3px var(--marca-lavado) !important;
 }}
+/* O selectbox usava o visual NATIVO do Streamlit, do lado de campos de 56px —
+   inconsistencia visivel nas Telas 2 e 3. Aqui ele entra na mesma regra da
+   §3.4. O seletor de baseweb e interno, e portanto fragil: se ele mudar de
+   nome numa atualizacao, o campo volta ao visual nativo, que continua
+   funcional. Degradacao aceitavel, como no resto da camada B. */
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div {{
+  min-height: 56px !important;
+  border-radius: var(--raio-campo) !important;
+  background: var(--superficie-2) !important;
+  border: 1px solid var(--traco) !important;
+  transition: border-color var(--dur) var(--curva),
+              box-shadow var(--dur) var(--curva);
+}}
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within {{
+  background: var(--superficie) !important;
+  border-color: var(--marca) !important;
+  box-shadow: 0 0 0 3px var(--marca-lavado) !important;
+}}
 [data-testid="stNumberInput"] label p,
 [data-testid="stTextInput"] label p,
 [data-testid="stSlider"] label p,
@@ -392,6 +410,25 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 }}
 /* Sem spinner: alvo pequeno e irrelevante num tablet (§5.1) */
 [data-testid="stNumberInput"] button {{ display: none !important; }}
+
+/* O seletor de marca da Tela 3 — o menu suspenso EM EVIDENCIA. Gancho
+   `st-key-seletor_marca`, de st.container(key=...).
+   Ele e a primeira e, ate a escolha, a UNICA coisa na tela: enquanto nenhuma
+   marca estiver escolhida a Tela 3 nao mostra cartao, campo nem lista. Por
+   isso ele ganha respiro em volta e o nome da marca escolhida e lido em
+   --t-campo, a 1 metro, como os demais campos da §3.4. */
+.st-key-seletor_marca {{ margin: 6px 0 22px !important; }}
+.st-key-seletor_marca [data-testid="stSelectbox"] label p {{
+  font-size: var(--t-rotulo) !important; font-weight: 700 !important;
+  letter-spacing: .01em;
+}}
+.st-key-seletor_marca div[data-baseweb="select"] {{
+  font-size: var(--t-campo) !important; font-weight: 600 !important;
+  color: var(--tinta-primaria) !important;
+}}
+.st-key-seletor_marca div[data-baseweb="select"] > div {{
+  border-color: var(--marca-borda) !important;
+}}
 [data-testid="stCaptionContainer"] p {{
   font-size: var(--t-derivado) !important;
   color: var(--tinta-secundaria) !important; line-height: 1.4 !important;
