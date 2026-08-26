@@ -26,7 +26,9 @@ import streamlit as st
 # erro no log do deploy, nunca uma tela quebrada na frente do cliente (§7.4).
 import src  # noqa: F401
 from src import css, marca
-from src.componentes import estado_reconexao, faixa_vendedor
+# A faixa do vendedor NAO e desenhada aqui: as tres telas desenham a propria,
+# porque cada uma tem uma linha de proveniencia diferente no rodape.
+from src.componentes import estado_reconexao
 
 # Rotulo curto na navegacao, titulo completo no corpo da tela. Rotulo longo
 # quebra em duas linhas na largura do cabecalho e rouba altura da tela.
@@ -77,11 +79,11 @@ def main() -> None:
 
     from src.telas import tela3_preco_original
 
-    linhas = tela3_preco_original.renderizar()
-
-    from src.dados.carregar_snapshot import carregar
-
-    faixa_vendedor.faixa(linhas, meta=[carregar().rotulo_versao()])
+    # A Tela 3 desenha a propria faixa do vendedor, como as Telas 1 e 2. Ela
+    # nao le o snapshot: os precos da original sao uma base propria
+    # (dados/precos.json), e herdar aqui o rotulo do snapshot faria o rodape
+    # dizer "nenhum snapshot publicado" embaixo de precos reais na tela.
+    tela3_preco_original.renderizar()
 
 
 def _cabecalho() -> str:
