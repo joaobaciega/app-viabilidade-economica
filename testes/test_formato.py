@@ -85,3 +85,35 @@ def test_percentual() -> None:
 def test_decimal_usa_virgula() -> None:
     assert formato.decimal(34.09) == "34,1"
     assert formato.decimal(4.545) == "4,5"
+
+
+def test_venda_da_unidade_concorda_com_a_unidade_declarada() -> None:
+    """D23: "por par vendido" e "por unidade vendida" concordam em genero.
+
+    A frase e escrita nos DOIS lugares do bloco de cashback — o titulo do grupo
+    e o subtotal —, e escreve-la a mao nos dois e como um deles vira "por
+    unidade vendido".
+    """
+    from src import parametros as P
+
+    assert formato.venda_da_unidade("par") == "por par vendido"
+    assert formato.venda_da_unidade("unitario") == "por unidade vendida"
+
+    # E vale para toda unidade DECLARADA no catalogo (§5.13 / V3), nao so para
+    # as duas escritas acima.
+    for categoria in P.CATEGORIAS:
+        frase = formato.venda_da_unidade(categoria.unidade)
+        assert frase.startswith("por ")
+        assert "vendido" in frase or "vendida" in frase
+
+
+def test_total_derivado_de_cashback_usa_a_seta_dos_outros_derivados() -> None:
+    """§5.1: o chip de total derivado tem uma forma so na tela inteira."""
+    texto = formato.total_derivado_cashback(15.0, "par")
+    assert texto == "→ R$ 15,00 no total, por par vendido"
+    assert texto.startswith("→ ")
+
+    # Centavos aparecem: e valor UNITARIO, por venda (§6.1.5).
+    assert formato.total_derivado_cashback(5.5, "unitario") == (
+        "→ R$ 5,50 no total, por unidade vendida"
+    )

@@ -12,7 +12,7 @@ from dataclasses import replace
 import pytest
 
 from src.calculo import calcular
-from src.componentes.exportador_pdf import gerar_pdf
+from src.componentes.exportador_pdf import gerar_pdf, nome_do_arquivo
 from testes.conftest import entradas_do_caso
 
 
@@ -137,6 +137,60 @@ def test_pdf_traducao_vem_antes_do_anual() -> None:
 def test_pdf_com_nome_do_cliente() -> None:
     texto = _texto_do_pdf(_pdf(cliente="Concessionária Exemplo"))
     assert "Concession" in texto
+
+
+def test_pdf_nome_do_arquivo_sem_cliente() -> None:
+    """Sem cliente o nome nao leva traco solto no meio."""
+    from datetime import date
+
+    assert nome_do_arquivo("", date(2026, 8, 27)) == (
+        "simulacao-refil-2026-08-27.pdf"
+    )
+    assert nome_do_arquivo("   ", date(2026, 8, 27)) == (
+        "simulacao-refil-2026-08-27.pdf"
+    )
+
+
+def test_pdf_nome_do_arquivo_sobrevive_a_qualquer_nome_de_cliente() -> None:
+    """D23 — o PDF SAI DA SALA, e o nome dele vai junto.
+
+    A versao anterior fazia `c if c.isalnum() else "-"` sobre o nome em
+    minusculas e deixava passar duas coisas:
+
+      - ACENTO. `"á".isalnum()` e True em Python, e o nome saia acentuado. O
+        Windows aceita; um anexo passando por servidor antigo, nem sempre
+      - TRACO REPETIDO. "Auto Center — Zona Sul" virava
+        `auto-center-----zona-sul`
+    """
+    from datetime import date
+
+    dia = date(2026, 8, 27)
+
+    assert nome_do_arquivo("Concessionária Guaíba", dia) == (
+        "simulacao-refil-concessionaria-guaiba-2026-08-27.pdf"
+    )
+    assert nome_do_arquivo("Auto Center — Zona Sul", dia) == (
+        "simulacao-refil-auto-center-zona-sul-2026-08-27.pdf"
+    )
+    # Pontuacao no fim nao vira traco solto antes da data.
+    assert nome_do_arquivo("Veículos Ipiranga LTDA.", dia) == (
+        "simulacao-refil-veiculos-ipiranga-ltda-2026-08-27.pdf"
+    )
+
+    for cliente in (
+        "Ação & Cia / Filial 2",
+        "  ---  ",
+        "São João",
+        "R$ Motors",
+        "\\..\\etc",
+    ):
+        nome = nome_do_arquivo(cliente, dia)
+        assert nome.isascii(), f"{cliente!r} -> {nome!r}"
+        assert nome.endswith("-2026-08-27.pdf"), nome
+        assert "--" not in nome, nome
+        # Nada que um sistema de arquivos leia como caminho.
+        for proibido in ("/", "\\", ":", "..", " "):
+            assert proibido not in nome, f"{cliente!r} -> {nome!r}"
 
 
 def test_pdf_sem_ancora_nao_inventa_valor() -> None:

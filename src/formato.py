@@ -160,3 +160,29 @@ def total_derivado_palhetas(por_ponto: float, pontos: int) -> str:
     """'-> 200 palhetas por mes no total'."""
     total = por_ponto * pontos
     return f"→ {inteiro(total)} palhetas por mês no total"
+
+
+def venda_da_unidade(unidade: str) -> str:
+    """'par' -> 'por par vendido'; 'unitario' -> 'por unidade vendida'.
+
+    A unidade de cada categoria e ATRIBUTO DECLARADO (§5.13, `Categoria.unidade`)
+    e as duas concordam em genero diferente. Escrever a frase nos dois lugares
+    que precisam dela — o titulo do grupo de cashback e o subtotal logo abaixo —
+    e como uma delas fica "por unidade vendido" numa das duas.
+    """
+    return "por par vendido" if unidade == "par" else "por unidade vendida"
+
+
+def total_derivado_cashback(soma: float, unidade: str) -> str:
+    """'-> R$ 15,00 no total, por par vendido'.
+
+    O subtotal de uma categoria de cashback: quanto a equipe recebe por venda,
+    somando os destinatarios. E derivado como os outros totais da §5.1, e usa a
+    MESMA seta e o mesmo "no total" deles — num celular os tres campos ficam um
+    embaixo do outro, e este chip e o que deixa conferir o combinado sem rolar
+    de volta.
+
+    NAO e, e nunca pode virar, o custo do programa para a Suicatech (§6.1.9):
+    e o valor por venda que foi digitado ali em cima, somado.
+    """
+    return f"→ {moeda_unitaria(soma)} no total, {venda_da_unidade(unidade)}"

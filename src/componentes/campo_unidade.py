@@ -48,11 +48,11 @@ def _renderizar(
     formato_num: str,
     derivado: Callable[[float], str] | None,
     legenda: str | None,
-    oculto: bool = False,
 ) -> float | None:
-    # `oculto` colapsa o rotulo, para grades em que o cabecalho da coluna ja
-    # nomeia o campo (a de cashback). O rotulo continua existindo para leitor
-    # de tela — `label_visibility="collapsed"`, nunca rotulo vazio (§9.6).
+    # NENHUM campo desta familia colapsa o rotulo. O parametro `oculto` existiu
+    # ate D23 para a grade 2x3 do cashback, em que o cabecalho da coluna nomeava
+    # o campo; a grade acabou justamente porque um rotulo que so existe no
+    # cabecalho nao sobrevive ao empilhamento do celular (§9.6).
     st.number_input(
         rotulo,
         key=chave,
@@ -60,7 +60,6 @@ def _renderizar(
         step=passo,
         format=formato_num,
         value=None,
-        label_visibility="collapsed" if oculto else "visible",
     )
 
     valor = st.session_state.get(chave)
@@ -108,7 +107,6 @@ def campo_moeda(
     rotulo: str,
     derivado: Callable[[float], str] | None = None,
     legenda: str | None = None,
-    oculto: bool = False,
 ) -> float | None:
     """Valor em reais, com centavos.
 
@@ -125,7 +123,6 @@ def campo_moeda(
         formato_num="%.2f",
         derivado=derivado,
         legenda=legenda,
-        oculto=oculto,
     )
 
 

@@ -329,9 +329,56 @@ def _procedencia_traseiro(e: Entradas) -> str:
     return "derivado do dianteiro na mesma proporção — não medido"
 
 
+def nome_do_arquivo(cliente: str, dia: date | None = None) -> str:
+    """`simulacao-refil-<cliente>-<AAAA-MM-DD>.pdf`, seguro em qualquer sistema.
+
+    A versao anterior fazia `c if c.isalnum() else "-"` sobre o nome em
+    minusculas, e isso deixava passar duas coisas que quebram nome de arquivo:
+
+      - ACENTO. `"á".isalnum()` e True em Python, e o nome saia com acento. O
+        Windows aceita; um anexo de e-mail passando por servidor antigo, nem
+        sempre — e o PDF existe justamente para sair da sala
+      - TRACO REPETIDO. "Auto Center — Zona Sul" virava
+        `auto-center-----zona-sul`
+
+    Sem cliente o nome nao leva o traco solto: `simulacao-refil-2026-08-27`.
+    """
+    dia = dia or date.today()
+    base = "simulacao-refil"
+
+    sem_acento = (
+        unicodedata.normalize("NFKD", cliente.lower())
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+    limpo = "".join(c if c.isalnum() else "-" for c in sem_acento)
+    while "--" in limpo:
+        limpo = limpo.replace("--", "-")
+    limpo = limpo.strip("-")
+
+    if limpo:
+        base = f"{base}-{limpo}"
+    return f"{base}-{dia:%Y-%m-%d}.pdf"
+
+
 def bloco_exportar(e: Entradas, r: Resultado) -> None:
-    """A area de exportacao. Fechada por padrao, como o painel de formula."""
+    """A area de exportacao. Fechada por padrao, como o painel de formula.
+
+    O DOCUMENTO E MONTADO A CADA RERUN, e nao atras de um botao "gerar". Sao
+    ~19 ms por PDF nesta maquina, contra um toque a mais na frente do cliente e
+    um estado a mais para o botao ficar dessincronizado do que esta na tela — o
+    risco real de um fluxo de dois passos e o vendedor baixar o PDF do cenario
+    ANTERIOR. A conta so roda quando o resultado esta visivel: a Tela 1 nao
+    chama este bloco antes do toque em "Mostrar Resultado".
+    """
     with st.expander("Levar esta simulação — PDF", expanded=False):
+        st.markdown(
+            f'<p class="st-exportar-nota">{svg("exportar")}'
+            "<span>Um documento com o cenário simulado, as premissas "
+            "assumidas e o que ainda não foi decidido.</span></p>",
+            unsafe_allow_html=True,
+        )
+
         st.text_input(
             "Nome do cliente (opcional, entra no documento)",
             key=K_NOME_CLIENTE,
@@ -344,17 +391,34 @@ def bloco_exportar(e: Entradas, r: Resultado) -> None:
                 "**documento interno** — o custo é o preço de venda da Suicatech."
             )
 
-        nome_arquivo = "simulacao-refil"
-        if cliente:
-            seguro = "".join(
-                c if c.isalnum() or c in "-_" else "-" for c in cliente.lower()
-            )
-            nome_arquivo = f"simulacao-refil-{seguro}"
+        with st.container(key="exportar"):
+            # §7.4 — nunca uma tela quebrada na frente do cliente. O PDF passa
+            # por fonte, imagem e rotacao; qualquer uma delas pode falhar num
+            # ambiente que nao e este, e uma excecao aqui derrubaria o
+            # RESULTADO INTEIRO, que ja esta na tela e e o que o cliente veio
+            # ver. A captura e larga de proposito, e o que ela troca por isso e
+            # dito em linha, sem componente de alerta (§5.9).
+            try:
+                documento = gerar_pdf(e, r, cliente)
+            except Exception:  # noqa: BLE001 — ver o comentario acima
+                documento = None
 
-        st.download_button(
-            f"{svg('exportar')} Baixar PDF do cenário",
-            data=gerar_pdf(e, r, cliente),
-            file_name=f"{nome_arquivo}-{date.today():%Y-%m-%d}.pdf",
-            mime="application/pdf",
-            width="stretch",
-        )
+            if documento is None:
+                st.caption(
+                    "O documento não pôde ser montado agora. Os números da tela "
+                    "continuam válidos — o painel **De onde vêm esses números** "
+                    "mostra a conta inteira."
+                )
+                return
+
+            # O ROTULO E TEXTO PURO, e nao pode voltar a carregar HTML: o
+            # Streamlit trata rotulo de botao como markdown e ESCAPA a marcacao
+            # — o `svg()` que morava aqui saia impresso como `<span class=...>`
+            # em cima do botao (§4.11). O icone e a linha de markdown acima.
+            st.download_button(
+                "Baixar PDF do cenário",
+                data=documento,
+                file_name=nome_do_arquivo(cliente),
+                mime="application/pdf",
+                width="stretch",
+            )

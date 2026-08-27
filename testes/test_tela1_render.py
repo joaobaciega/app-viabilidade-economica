@@ -10,10 +10,13 @@ para so eles.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from streamlit.testing.v1 import AppTest
 
 from src import parametros as P
+from testes.checagens import RAIZ
 from testes.conftest import CASOS
 
 TEMPO = 120
@@ -555,6 +558,96 @@ def test_render_cashback_mostra_o_rateio_por_destinatario() -> None:
         assert nome in texto, nome
 
 
+def test_render_cashback_todo_campo_tem_rotulo_proprio_visivel() -> None:
+    """D23 — o que substituiu a grade 2x3, e o que a grade nao conseguia dar.
+
+    Na grade, quem nomeava os seis campos era um CABECALHO DE COLUNA. Isso
+    obrigava a grade a ficar em linha em qualquer largura (D22), porque
+    empilhada o cabecalho deixava de encabecar e os campos ficavam anonimos — e
+    o preco era um campo de ~85px num celular de 390px.
+
+    O que este teste trava: cada campo carrega o proprio rotulo, e o rotulo diz
+    O DESTINATARIO E A CATEGORIA. So o destinatario nao bastaria: "Consultor"
+    apareceria duas vezes, e quem chega no campo por leitor de tela nao le o
+    titulo da linha de cima ao tabular (§9.6).
+    """
+    at = _app()
+    rotulos = {
+        w.key: w.label for w in at.number_input if w.key.startswith("cashback_")
+    }
+    assert len(rotulos) == 6, rotulos
+
+    for chave, rotulo in rotulos.items():
+        assert rotulo, f"{chave} ficou sem rótulo"
+        categoria = "dianteiro" if "_d_" in chave else "traseiro"
+        assert categoria in rotulo.lower(), (
+            f"{chave} tem rótulo {rotulo!r}, que não diz a categoria — "
+            f"empilhado no celular ele fica ambíguo com o outro grupo"
+        )
+
+    # Os tres destinatarios aparecem em cada categoria, e nenhum rotulo se
+    # repete entre as duas.
+    assert len(set(rotulos.values())) == 6, rotulos
+    for nome in P.DESTINATARIOS_CASHBACK:
+        assert sum(nome in r for r in rotulos.values()) == 2, nome
+
+
+def test_render_cashback_subtotal_por_categoria() -> None:
+    """D23: o chip que deixa conferir o combinado sem rolar de volta.
+
+    Num celular os tres campos ficam um embaixo do outro e o primeiro sai da
+    tela enquanto o ultimo e preenchido.
+    """
+    at = _preencher_cenario_base(_app())
+    assert not [b for b in _blocos(at) if "no total, por par vendido" in b], (
+        "sem cashback preenchido nao existe total de nada (§5.1)"
+    )
+
+    _preencher_cashback(at)  # 10 + 3 + 2
+
+    chips = [b for b in _blocos(at) if "no total, por par vendido" in b]
+    assert chips, "o subtotal do dianteiro precisa aparecer"
+    assert "R$ 15,00" in chips[0], chips[0]
+    assert 'class="st-derivado"' in chips[0], (
+        "o subtotal usa o mesmo chip dos outros derivados (§5.1)"
+    )
+
+    # O traseiro segue vazio: o chip dele NAO aparece.
+    assert not [b for b in _blocos(at) if "no total, por unidade vendida" in b]
+
+
+def test_render_cashback_nao_depende_de_cabecalho_de_coluna() -> None:
+    """D23 revoga a excecao de D22: a grade 2x3 nao existe mais.
+
+    Enquanto o cabecalho de coluna existia, o CSS era obrigado a manter o bloco
+    em linha em qualquer largura — e era essa regra que produzia os campos de
+    ~85px no celular. Este teste garante que ninguem traga o cabecalho de volta
+    sem perceber que ele arrasta a regra junto.
+    """
+    at = _app()
+    for bloco in _blocos(at):
+        assert "st-cash-cabecalho" not in bloco, (
+            "o cabeçalho de coluna do cashback voltou — com ele volta o campo "
+            "de ~85px no celular (D22 §celular)"
+        )
+
+    folha = (RAIZ / "src" / "css.py").read_text(encoding="utf-8")
+    celular = folha[folha.index("@media (max-width: 767px)") :]
+    regra = re.search(
+        r'\.st-key-entrada_cashback \[data-testid="stHorizontalBlock"\] \{\{'
+        r"([^}]*)\}\}",
+        celular,
+    )
+    assert regra is not None, (
+        "abaixo de 768px o cashback precisa de uma regra própria: a exceção de "
+        "1023px o mantém em linha, e é ela que este bloco revoga"
+    )
+    assert "flex-direction: column" in regra.group(1), (
+        "abaixo de 768px o cashback precisa empilhar: em linha, são três "
+        "campos de ~110px num aparelho de 390px"
+    )
+
+
 def test_render_rotulo_nunca_menciona_cashback() -> None:
     """§6.1.7 / §12: "cashback" nunca aparece no rotulo do resultado.
 
@@ -653,6 +746,56 @@ def test_render_tabela_gemea_da_curva_existe() -> None:
     at = _preencher_cenario_base(_app())
     rotulos = [e.label for e in at.expander]
     assert any("números da curva" in r for r in rotulos), rotulos
+
+
+def test_render_exportar_pdf_o_botao_entrega_o_documento() -> None:
+    """D23 / §4.11 — o botao de baixar, verificado no ARTEFATO.
+
+    O componente e testado desde sempre por `test_pdf.py`, que chama
+    `gerar_pdf()` direto: o DOCUMENTO estava certo o tempo todo. O que estava
+    quebrado era o botao — a unica peca entre o documento e o cliente — e
+    nenhum teste olhava para ele.
+
+    O defeito: o rotulo carregava `svg('exportar')`, e o Streamlit trata rotulo
+    de botao como markdown e ESCAPA a marcacao. O botao saia com
+    `<span class="st-icone" ...><svg ...>` impresso em cima dele.
+
+    Os BYTES nao dao para conferir aqui — o proto do download_button carrega so
+    uma URL de midia, nao o conteudo. Quem cobre o conteudo e `test_pdf.py`, e
+    o nome do arquivo e `test_pdf_nome_do_arquivo_*`. O que este teste cobre e o
+    que so existe no artefato: o rotulo, a presenca do botao e o tipo do
+    arquivo que ele serve.
+    """
+    at = _preencher_cenario_base(_app())
+    at.text_input(key="nome_cliente").set_value("Auto Center — Zona Sul").run()
+
+    botoes = at.get("download_button")
+    assert botoes, "o botão de baixar o PDF precisa existir com o resultado na tela"
+    baixar = botoes[0]
+
+    assert "<" not in baixar.label and ">" not in baixar.label, (
+        f"rótulo com marcação: {baixar.label!r}. O Streamlit escapa HTML em "
+        f"rótulo de botão — o ícone vai numa linha de markdown, não aqui"
+    )
+    assert baixar.label == "Baixar PDF do cenário"
+    assert baixar.proto.url.endswith(".pdf"), baixar.proto.url
+
+    # E o icone continua na tela, na linha de markdown acima do botao (D2:
+    # icone SEMPRE acompanhado de palavra, nunca canal unico).
+    notas = [b for b in _blocos(at) if "st-exportar-nota" in b]
+    assert notas, "a nota da área de exportação precisa existir"
+    assert "<svg" in notas[0]
+
+
+def test_render_exportar_pdf_so_com_o_resultado_na_tela() -> None:
+    """O PDF e montado a cada rerun, e por isso NAO pode existir antes do toque.
+
+    Antes de "Mostrar Resultado" a Tela 1 nao chama o bloco de exportacao —
+    montar o documento ali seria trabalho por tecla digitada, e um PDF do
+    cenario incompleto ao alcance de um toque.
+    """
+    at = _app()
+    assert not at.get("download_button")
 
 
 def test_render_painel_de_formula_existe_e_abre_fechado() -> None:

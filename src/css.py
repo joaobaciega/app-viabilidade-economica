@@ -362,6 +362,11 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   padding: 9px 14px 10px !important;
   margin-bottom: 9px;
 }}
+/* D23 — o cashback deixou de ser grade 2x3. Cada categoria virou um titulo por
+   cima de tres campos rotulados, e o titulo do segundo grupo precisa de ar: sem
+   ele "Consultor · traseiro" encosta no chip de subtotal do dianteiro. */
+.st-key-entrada_cashback .st-rotulo-categoria {{ margin: 12px 0 5px !important; }}
+
 /* Atalhos de aproveitamento traseiro — pequenos de proposito. Sao controle de
    OPERACAO, nao o protagonista: os 96px sao dos presets do dianteiro (§5.3). */
 .st-key-atalhos_traseiro {{ margin: -8px 0 2px !important; }}
@@ -610,6 +615,40 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 }}
 
 /* ===================================================================
+   8.2 EXPORTAR PDF — D23. Gancho `st-key-exportar`, de
+   st.container(key="exportar").
+
+   O `st.download_button` era o unico controle da Tela 1 que entrava com o
+   visual NATIVO do Streamlit, no meio de uma tela em que todo o resto passou
+   pela §3.4 — parecia peca de outro app. Ele fica em vermelho de marca porque
+   e a acao final da area de exportacao e nao divide o espaco com nenhuma
+   outra: aqui o vermelho e acao, nao alerta (§3.1.2 restringe o vermelho de
+   ALERTA, que continua nao existindo).
+   =================================================================== */
+.st-key-exportar {{ margin: 12px 0 2px !important; }}
+.st-key-exportar [data-testid="stDownloadButton"] button {{
+  min-height: 52px !important; height: 52px !important;
+  border-radius: var(--raio-campo) !important;
+  background: var(--marca) !important;
+  border: 1px solid var(--marca-escuro) !important;
+  box-shadow: var(--sombra-cartao) !important;
+}}
+.st-key-exportar [data-testid="stDownloadButton"] button p {{
+  font-size: var(--t-rotulo) !important; font-weight: 700 !important;
+  letter-spacing: .04em; color: var(--tinta-clara) !important;
+}}
+.st-key-exportar [data-testid="stDownloadButton"] button:hover {{
+  background: var(--marca-escuro) !important;
+}}
+.st-exportar-nota {{
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: var(--t-derivado) !important; line-height: 1.4 !important;
+  color: var(--tinta-secundaria) !important;
+  margin: 0 0 8px !important;
+}}
+.st-exportar-nota .st-icone {{ color: var(--marca); }}
+
+/* ===================================================================
    9. RESULTADO — TRES CARTOES. D21, e D6 no primeiro deles.
    A ordem e normativa: faturamento adicional -> margem de contribuicao
    adicional -> mark up da operacao.
@@ -732,21 +771,9 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   color: var(--tinta-secundaria) !important;
 }}
 
-/* Grade de cashback em Ajustes avancados */
-.st-cash-cabecalho {{
-  font-size: var(--t-derivado) !important; font-weight: 700 !important;
-  letter-spacing: .05em; text-transform: uppercase;
-  color: var(--marca-escuro) !important;
-  margin: 8px 0 2px !important; text-align: center;
-}}
-.st-cash-linha {{
-  font-size: var(--t-derivado) !important; line-height: 1.35 !important;
-  color: var(--tinta-secundaria) !important;
-  margin: 14px 0 0 !important;
-}}
-.st-cash-linha b {{
-  color: var(--tinta-primaria) !important; font-size: var(--t-rotulo) !important;
-}}
+/* As classes `.st-cash-cabecalho` e `.st-cash-linha` sairam em D23, junto com
+   a grade 2x3. O bloco de cashback usa agora `.st-rotulo-categoria` — a mesma
+   linha de titulo do bloco do refil — e um `.st-derivado` de subtotal. */
 
 /* "hoje X -> com refil Y" — tambem em tinta escura por D21, mesma razao das
    linhas de apoio acima. */
@@ -1001,9 +1028,10 @@ hr, [data-testid="stDivider"] hr {{ border-color: var(--traco) !important; }}
      - cenarios: tres botoes lado a lado sao a forma do controle (§5.3)
      - resultado: a linha de tres cartoes e a leitura do resultado
      - cabecalho: marca a esquerda, navegacao a direita
-     - cashback: e uma GRADE 2x3. Empilhada, o cabecalho de coluna
-       ("Consultor", "Gerente", "Marketing") deixa de encabecar nada e os seis
-       campos ficam sem rotulo visivel — a grade vira seis caixas anonimas. */
+     - cashback: tres campos por categoria cabem em linha ate 768px, e em
+       linha eles cabem na mesma tela que o resto do cartao. Abaixo de 768px
+       a excecao e REVOGADA no bloco do celular — desde D23 cada campo carrega
+       o proprio rotulo, e empilhar deixou de custar informacao. */
   .st-key-cenarios [data-testid="stHorizontalBlock"],
   .st-key-resultado [data-testid="stHorizontalBlock"],
   .st-key-cabecalho [data-testid="stHorizontalBlock"],
@@ -1079,8 +1107,7 @@ hr, [data-testid="stDivider"] hr {{ border-color: var(--traco) !important; }}
   .st-key-cenarios [data-testid="stHorizontalBlock"] {{ gap: 6px !important; }}
   .st-key-cenarios [data-testid="stButton"] button p {{ letter-spacing: .02em; }}
 
-  /* Cartoes de campo: menos padding, e a grade de cashback apertada ao maximo
-     sem perder os 44px de altura. */
+  /* Cartoes de campo: menos padding. */
   .st-key-entrada_operacao,
   .st-key-entrada_hoje,
   .st-key-entrada_dianteiro,
@@ -1088,10 +1115,27 @@ hr, [data-testid="stDivider"] hr {{ border-color: var(--traco) !important; }}
   .st-key-entrada_cashback {{
     padding: 8px 10px 9px !important;
   }}
-  .st-key-entrada_cashback [data-testid="stHorizontalBlock"] {{ gap: 4px !important; }}
-  .st-cash-cabecalho {{ font-size: var(--t-vendedor) !important; }}
-  .st-cash-linha {{ font-size: var(--t-vendedor) !important; }}
-  .st-cash-linha b {{ font-size: var(--t-derivado) !important; }}
+
+  /* CASHBACK — D23 REVOGA A EXCECAO DE D22.
+     Ate D22 a grade de cashback ficava em linha em qualquer largura: eram
+     QUATRO colunas (categoria + tres destinatarios) e, a 390px, campos de
+     ~85px com rotulo nenhum, porque quem nomeava a coluna era um cabecalho
+     que o empilhamento levava embora. D22 registrou isso como "o compromisso
+     escolhido"; o cliente pediu que deixasse de ser.
+     Agora cada campo tem rotulo proprio, sao tres colunas em vez de quatro, e
+     empilhar nao perde nada: o campo passa de ~85px para a largura inteira do
+     cartao. Custa altura — tres campos por categoria, um por linha — e essa e
+     a troca. Esta regra vem DEPOIS da excecao de 1023px de proposito: mesma
+     especificidade, e a ultima vence. */
+  .st-key-entrada_cashback [data-testid="stHorizontalBlock"] {{
+    flex-direction: column !important;
+    /* O gap aqui e VERTICAL: e a folga entre o campo de um destinatario e o
+       rotulo do proximo. Com 0 o rotulo encosta no campo de cima e os tres
+       viram um bloco so. 6px e o mesmo ritmo do empilhamento dentro dos
+       cartoes (0,3rem). */
+    gap: 6px !important;
+  }}
+  .st-key-entrada_cashback [data-testid="stColumn"] {{ width: 100% !important; }}
 
   .st-cartao {{ padding: 16px 16px 14px; }}
   .st-tabela {{ max-height: 260px; }}

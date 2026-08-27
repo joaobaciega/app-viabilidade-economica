@@ -59,6 +59,20 @@ MANUAIS = [
         "⚠️ Decisao K: o vermelho e o provisorio validado #C8102E. Ao trocar "
         "pelo oficial, refaca as tres medidas da §3.1.1 e a da §5.11.1.",
     ),
+    (
+        "Cashback no celular e no tablet (D23)",
+        "Em 390x844 os seis campos aparecem UM POR LINHA, cada um com o rotulo "
+        "'<destinatario> · <categoria>' visivel e sem quebra em duas linhas, e "
+        "o chip de subtotal aparece ao preencher. Em 768px e acima, os tres "
+        "campos de cada categoria continuam LADO A LADO.",
+    ),
+    (
+        "Baixar o PDF (D23, §4.11)",
+        "Com o resultado na tela, abra 'Levar esta simulacao — PDF': o botao "
+        "esta em vermelho de marca, SEM NENHUMA MARCACAO IMPRESSA no rotulo, e "
+        "o toque baixa um arquivo que ABRE num leitor de PDF. Repita com o nome "
+        "do cliente acentuado e confira o nome do arquivo baixado.",
+    ),
 ]
 
 
@@ -109,8 +123,8 @@ def main() -> int:
     if aprovado:
         print(f"  {VERDE}Todos os itens automatizaveis passaram.{FIM}")
         print(
-            f"  {CINZA}A Tela 1 nao esta pronta ate os 5 itens manuais acima "
-            f"estarem marcados.{FIM}"
+            f"  {CINZA}A Tela 1 nao esta pronta ate os {len(MANUAIS)} itens "
+            f"manuais acima estarem marcados.{FIM}"
         )
     else:
         print(f"  {VERMELHO}Um ou mais itens reprovaram. Veja acima.{FIM}")

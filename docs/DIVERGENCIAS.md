@@ -502,6 +502,86 @@ larguras, não em uma: **1366×1024**, **1180×820** e **390×844**. O que eu n�
 consigo verificar daqui é quantos rótulos quebram em duas linhas em cada
 largura — é isso que decide se a compactação entregou o que promete.
 
+### D23 — O cashback deixou de ser grade, e o botão de PDF virou um botão
+
+Pedido do cliente em 27/08/2026: *"refaça a parte de cashback da tela 1 para
+ficar melhor de preencher no celular"* e *"faça a funcionalidade de exportar pra
+PDF ser funcional"*.
+
+#### O cashback — o que a grade cobrava, e por quê
+
+D16 desenhou o bloco como **grade 2 × 3**: uma coluna com o nome da categoria
+mais uma coluna por destinatário, os seis campos com o rótulo colapsado
+(`label_visibility="collapsed"`) e o cabeçalho de coluna nomeando cada um.
+
+Isso amarrava o layout de um jeito que só aparece no celular: **empilhar a grade
+apaga o cabeçalho de quem ele encabeça**, e os seis campos ficam anônimos. D22 já
+tinha topado com isso e escolheu o outro lado — manter a grade em linha em
+qualquer largura — registrando o preço em texto:
+
+> "A 390 px ela fica apertada — quatro colunas de ~85 px — e isso é o
+> compromisso escolhido."
+
+Um campo de moeda de **85 px**, com dedo, é o que o cliente pediu para acabar.
+
+#### O que mudou
+
+| | Antes (D16/D22) | Agora |
+|---|---|---|
+| Forma | grade 2 × 3, cabeçalho de coluna | dois grupos, um por categoria |
+| Colunas | 4 (categoria + 3 destinatários) | **3** (um por destinatário) |
+| Rótulo do campo | colapsado; quem nomeava era o cabeçalho | **visível**, `Consultor · dianteiro` |
+| Título da categoria | primeira coluna da linha | linha acima dos três campos, em `.st-rotulo-categoria` — a mesma do bloco do refil |
+| Abaixo de 768 px | em linha, campos de ~85 px | **empilhado**, campo de largura inteira (~360 px) |
+| Conferência | só no bloco de resultado | **chip de subtotal** por categoria, `→ R$ 15,00 no total, por par vendido` |
+
+O rótulo diz o destinatário **e a categoria**, e não só o destinatário: quem
+chega no campo por leitor de tela não lê o título da linha de cima ao tabular, e
+"Consultor" apareceria duas vezes idêntico (§9.6). A unidade fica de fora dele
+porque já está no título logo acima — e vem de `Categoria.unidade`, declarada
+(§5.13 / V3), nunca de um literal no componente.
+
+**O custo assumido:** "Consultor · Gerente · Marketing" aparece duas vezes, uma
+por categoria, em vez de uma vez no cabeçalho — ~21 px por rótulo. É o que
+compra o campo de ~360 px. No celular o bloco fica mais alto: seis campos, um
+por linha. Rolar é barato; errar o campo com o dedo, não.
+
+O subtotal existe pela cena: empilhados, o primeiro campo sai da tela enquanto o
+último é preenchido, e o chip é o que deixa conferir o combinado sem rolar de
+volta. Ele **não** é, e não pode virar, o custo do programa para a Suicatech
+(§6.1.9) — é o valor por venda que acabou de ser digitado, somado.
+
+*Efeito colateral:* o parâmetro `oculto` de `campo_moeda` **deixou de existir**.
+Ele só servia à grade, e um rótulo que só vive no cabeçalho é justamente o que
+não sobrevive ao empilhamento.
+
+#### O PDF — o documento estava certo, o botão é que não
+
+`test_pdf.py` cobria o documento desde sempre, chamando `gerar_pdf()` direto, e
+os doze testes passavam. **Nenhum teste olhava para o botão** — a única peça
+entre o documento e o cliente. Ver §4.11.
+
+| | Antes | Agora |
+|---|---|---|
+| Rótulo | `f"{svg('exportar')} Baixar PDF do cenário"` — o Streamlit escapa HTML em rótulo de botão, e o `<span class="st-icone"><svg …>` saía **impresso em cima do botão** | texto puro; o ícone vai numa linha de markdown acima (`.st-exportar-nota`) |
+| Visual | o único controle da Tela 1 com o visual **nativo** do Streamlit | vermelho de marca, 52 px, `st-key-exportar` (§3.4) |
+| Nome do arquivo | `c if c.isalnum() else "-"` deixava passar **acento** (`"á".isalnum()` é `True`) e traço repetido (`auto-center-----zona-sul`) | `nome_do_arquivo()`, ASCII, traços colapsados, testada |
+| Falha ao montar | exceção derrubava o **resultado inteiro**, já na tela | linha discreta dizendo o que fazer, sem componente de alerta (§5.9, §7.4) |
+
+O documento continua sendo montado **a cada rerun**, e não atrás de um botão
+"gerar": são ~19 ms por PDF, contra um toque a mais na frente do cliente e um
+estado a mais para dessincronizar. O risco real de um fluxo de dois passos é o
+vendedor baixar o PDF do cenário **anterior**. A conta só roda com o resultado
+visível — a Tela 1 não chama o bloco antes do toque.
+
+**Travado por:** `test_render_cashback_todo_campo_tem_rotulo_proprio_visivel`,
+`test_render_cashback_subtotal_por_categoria`,
+`test_render_cashback_nao_depende_de_cabecalho_de_coluna` (que lê o CSS e exige
+o empilhamento abaixo de 768 px),
+`test_render_exportar_pdf_o_botao_entrega_o_documento`,
+`test_render_exportar_pdf_so_com_o_resultado_na_tela`,
+`test_pdf_nome_do_arquivo_*` e `test_venda_da_unidade_concorda_com_a_unidade_declarada`.
+
 ### D4 — Vermelho não é usado em filete de seção *(revogada por D5)*
 
 Registro para rastreabilidade: na rodada anterior os filetes de seção usavam
@@ -718,6 +798,32 @@ comparação de string com acento.
 - **Lição:** **não editar arquivos com acento pelo PowerShell.** Use as
   ferramentas de edição ou Python com `encoding='utf-8'` explícito.
 
+### 4.11 O botão de baixar o PDF imprimia o próprio HTML do ícone
+
+O rótulo era `f"{svg('exportar')} Baixar PDF do cenário"`. O Streamlit trata
+rótulo de widget como markdown e **escapa** a marcação — nem `unsafe_allow_html`
+existe ali. O botão saía com
+
+```
+<span class="st-icone" aria-hidden="true"><svg viewBox="0 0 24 24" …></span> Baixar PDF do cenário
+```
+
+impresso em cima dele, no fim da tela que o cliente acabou de ver.
+
+O que torna este o defeito mais instrutivo do arquivo: **`gerar_pdf()` estava
+perfeito**, e doze testes provavam isso — vocabulário, marca-d'água, decisões em
+aberto, ordem de leitura, cashback que não desconta. Todos chamavam a função
+direto. Nenhum instanciava a tela e olhava para o botão, que é a única peça entre
+o documento e o cliente. Do lado de fora, "exportar para PDF" simplesmente não
+funcionava.
+
+- **Correção:** rótulo em texto puro; o ícone foi para uma linha de markdown
+  acima (`.st-exportar-nota`), onde `unsafe_allow_html` vale.
+- **Lição:** `svg()` só pode entrar em `st.markdown(..., unsafe_allow_html=True)`.
+  Em rótulo de botão, de campo, de expander ou de aba, ele vira texto. E, mais
+  geral: **testar a função não é testar o componente.** Um teste de renderização
+  por elemento — não só por texto na página — é o que pega esta classe.
+
 ### 4.6 O valor do slider colidia com o rótulo do campo
 
 O Streamlit desenha o valor corrente do slider acima do trilho, na mesma caixa do
@@ -741,6 +847,13 @@ O checklist manual da §5 abaixo não é burocracia — é a única rede que peg
 classe de defeito. E é por isso que subir a versão do Streamlit exige refazer o
 reteste visual inteiro.
 
+§4.11 acrescenta uma variante da mesma lição, e ela é mais barata de fechar: ali
+a suíte tinha **doze testes** provando que o PDF estava certo, e nenhum
+instanciando o botão que o entregava. Onde o teste de navegador é caro, o de
+renderização por elemento (`AppTest` + `at.get("download_button")`, `at.button`,
+`at.number_input(...).label`) cobre boa parte — e cobre justamente a peça que
+fica entre a função correta e o cliente.
+
 ---
 
 ## 5. Itens de verificação manual
@@ -754,6 +867,9 @@ Não são opinião — só não são comando. `python verificar.py` os lista no 
 | 3 | **Reteste dos itens 🔧** contra `streamlit==1.58.0`. Subir a versão exige refazer (§3, camada B) | | |
 | 4 | **Queda de rede.** Wi-fi desligado com o app aberto: o último resultado permanece, o aviso nativo aparece neutralizado no rodapé, **nenhuma caixa vermelha** (§5.14) | | |
 | 5 | **Cor da marca.** Ao trocar `#C8102E` pelo vermelho oficial, refazer as três medidas da §3.1.1 e a validação da §5.11.1 (⚠️ K) | | |
+| 6 | **Cashback no celular (D23).** Em 390×844: os seis campos aparecem **um por linha**, cada um com o rótulo `<destinatário> · <categoria>` visível e sem quebra em duas linhas; o chip de subtotal aparece ao preencher e some ao apagar | | |
+| 7 | **Cashback no tablet (D23).** Em 1180×820 e em 768 px: os três campos de cada categoria continuam **lado a lado**, e o título da categoria não encosta no campo de cima | | |
+| 8 | **Baixar o PDF (D23 / §4.11).** Com o resultado na tela, abrir "Levar esta simulação — PDF": o botão está em vermelho de marca, **sem nenhuma marcação impressa no rótulo**, e o toque baixa um arquivo que abre num leitor de PDF. Repetir com o nome do cliente acentuado e conferir o nome do arquivo baixado | | |
 
 **Medições já conferidas no navegador** (Chrome headless, 1180×1100, 11/08/2026).
 Estas cobrem o item 3 parcialmente — o que resta dele é olhar a tela ligada.
