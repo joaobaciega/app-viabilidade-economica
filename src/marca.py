@@ -3,17 +3,22 @@
 O logo NAO vive no codigo: ele vive em `assets/`. Basta soltar o arquivo lá e
 ele aparece — nenhuma linha de Python muda.
 
-    assets/logo.png     (ou .svg, .webp, .jpg)
+    assets/logo.png     (ou .svg, .webp, .jpg, .jpeg)
 
-QUAL ARQUIVO USAR. A faixa do cabecalho e vermelha, portanto o logo precisa ser
-a versao BRANCA com fundo transparente. No kit da marca:
+EM USO DESDE 27/08/2026 (D25): `assets/logo.jpeg`, o lockup horizontal atual —
+palavra-marca `SUIÇA TECH` em vermelho sobre branco, com a assinatura
+`INTRACE Br` embaixo, a direita. Sao DOIS andares, sem tarja de slogan e sem as
+bandeiras que o lockup anterior tinha. O original entregue pelo cliente esta ao
+lado, em `assets/logo-suica-tech-atual.jpeg`.
 
-    Ações 2020/Embalagem 2022/Rótulos 2022/Projeto Externo/01 LOGOTIPO/
-      PNG/01 PRINCIPAL/LOGO SUICA TECH HORIZONTAL BRANCO.png
+FUNDO BRANCO OPACO, e por isso `FUNDO_CLARO` continua True: o arquivo e um JPEG
+(sem canal alfa) e a palavra-marca e VERMELHA. Sobre a faixa vermelha do
+cabecalho original nao haveria contraste nenhum, e o retangulo branco do JPEG
+apareceria como uma caixa. Com o cabecalho claro os dois problemas somem — o
+branco do arquivo e #FFFFFF exato, o mesmo de `--superficie`.
 
-Se voce preferir usar a versao COLORIDA (fundo claro), troque
-`FUNDO_CLARO = True` abaixo: o cabecalho passa a ser branco com filete vermelho
-e o texto vira tinta escura, sem mexer em mais nada.
+Trocar por uma versao BRANCA com fundo transparente (PNG ou SVG) e a unica
+condicao para voltar a `FUNDO_CLARO = False`, que devolve a faixa vermelha.
 
 POR QUE O ARQUIVO E EMBUTIDO COMO data: URI, e nao servido por caminho:
 `st.image` e `st.logo` criam um endpoint de midia e uma requisicao HTTP extra
@@ -33,19 +38,26 @@ import base64
 from functools import lru_cache
 from pathlib import Path
 
-# O logo oficial da Suica Tech e COLORIDO (letras vermelhas com relevo, bandeiras
-# suica e alema, tarja de slogan). Letra vermelha sobre faixa vermelha nao tem
-# contraste nenhum, portanto o cabecalho e claro: superficie branca com filete
-# vermelho embaixo. Ver _cabecalho_claro() em css.py.
+# O logo da Suica Tech e COLORIDO — palavra-marca vermelha sobre branco. Letra
+# vermelha sobre faixa vermelha nao tem contraste nenhum, portanto o cabecalho e
+# claro: superficie branca com filete vermelho embaixo. Ver _cabecalho_claro()
+# em css.py.
 FUNDO_CLARO = True
 
 DIRETORIO = Path(__file__).resolve().parents[1] / "assets"
 NOMES = ("logo.svg", "logo.png", "logo.webp", "logo.jpg", "logo.jpeg")
 
-# O lockup INTEIRO, com a tarja de slogan. Vai no PDF, onde ha espaco — no
-# cabecalho ele reduz a palavra-marca a ~18px e a assinatura a um borrao, e a
-# §4 do DESIGN proibe linguagem de anuncio na copy do app. Um documento que sai
-# da sala nao e o instrumento da negociacao, e la a tarja cabe.
+# UM LOCKUP MAIOR PARA O PDF, quando ele existir. Deixou de existir em D25: o
+# logo atual tem dois andares e cabe inteiro nos 44px do cabecalho, entao a
+# mesma arte serve os dois lugares — a busca abaixo nao encontra nada e cai em
+# `_arquivo()`, que e o comportamento correto.
+#
+# O MECANISMO CONTINUA DE PE de proposito. O lockup anterior tinha tres andares
+# e uma tarja de slogan ("O NÚMERO 1 EM BORRACHA PARA PALHETA"): a 44px a
+# palavra-marca caia para ~18px e a assinatura virava borrao, e a §4 do DESIGN
+# proibe linguagem de anuncio na copy do app — mas um documento que sai da sala
+# nao e o instrumento da negociacao, e la a tarja cabia. No dia em que uma arte
+# assim voltar, basta solta-la aqui com este nome.
 NOMES_COMPLETO = ("logo-completo.png", "logo-completo.jpg", "logo-completo.webp")
 
 # Acima disto, embutir custa mais do que o logo entrega.

@@ -260,11 +260,13 @@ header[data-testid="stHeader"] {{
 .st-marca .st-icone svg {{ stroke-width: 2.1; }}
 /* O logo em arquivo (assets/logo.*), embutido como data: URI por src/marca.py.
    `height` fixa a altura e `width: auto` preserva a proporcao qualquer que
-   seja o arquivo — nao deformamos a marca de ninguem. */
-/* 44px com o recorte de dois andares (palavra-marca + assinatura) deixa a
-   palavra-marca em ~26px — legivel. Com o lockup de tres andares no mesmo
-   espaco ela cairia para ~18px e a assinatura viraria borrao: o lockup inteiro
-   vive no PDF, onde ha espaco (ver src/marca.py). */
+   seja o arquivo — nao deformamos a marca de ninguem.
+
+   D25: o lockup atual e horizontal e tem DOIS andares (palavra-marca +
+   `INTRACE Br`), 1600x301. A 44px de altura ele sai com ~234px de largura, bem
+   dentro do teto de 380px, e a palavra-marca fica em ~30px — legivel. O
+   `max-width` continua aqui porque ele e a rede: uma arte muito mais larga
+   encolhe em vez de empurrar a navegacao para fora da faixa. */
 .st-logo {{
   display: block; height: 44px; width: auto;
   max-width: 380px; object-fit: contain;

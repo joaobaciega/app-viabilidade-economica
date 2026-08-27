@@ -310,6 +310,40 @@ def test_logo_tem_reserva_e_nunca_quebra_a_tela() -> None:
         assert marca.motivo_da_reserva() is None
 
 
+def test_o_logo_entregue_esta_de_fato_em_uso() -> None:
+    """O app NAO pode ser entregue caindo na reserva tipografica sem ninguem ver.
+
+    A reserva existe para o app nao quebrar (§7.4), e por isso ela e silenciosa
+    na area que o cliente le — o aviso vive na faixa do vendedor, em 12px. Isso
+    e correto em reuniao e e uma armadilha no deploy: trocar o arquivo de logo e
+    errar o nome deixa o app rodando, verde, e sem marca nenhuma. Aconteceu ao
+    trocar o lockup em 27/08/2026 (D25) — `assets/logo.png` saiu e por um
+    momento nao havia nenhum nome que `marca.NOMES` procura.
+
+    Este teste e o que fecha esse buraco: com o arquivo no repositorio, ele
+    precisa estar EM USO, e nao apenas presente.
+    """
+    from src import marca
+
+    caminho = marca.caminho_do_logo()
+    assert caminho is not None, (
+        "nenhum arquivo em assets/ com um dos nomes que o app procura "
+        f"({', '.join(marca.NOMES)}) — o app subiria com a marca em texto"
+    )
+    assert marca.motivo_da_reserva() is None, marca.motivo_da_reserva()
+    assert marca.html().startswith("<img"), "o cabeçalho caiu na reserva"
+
+    # E o mesmo arquivo precisa servir o PDF. Um SVG resolveria o cabecalho e
+    # deixaria o documento SEM logo, porque `_Documento.header` pula `.svg` —
+    # o `fpdf2` nao rasteriza SVG por caminho de imagem.
+    do_pdf = marca.caminho_do_logo_completo()
+    assert do_pdf is not None
+    assert do_pdf.suffix.lower() != ".svg", (
+        f"{do_pdf.name} é SVG: o cabeçalho da tela mostraria a marca e o PDF "
+        f"sairia sem ela. Guarde também um PNG/JPEG como logo-completo.png"
+    )
+
+
 def test_logo_e_embutido_sem_requisicao_externa() -> None:
     """P11 / §7.1: a Tela 1 nao faz NENHUMA requisicao externa.
 

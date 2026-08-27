@@ -111,8 +111,9 @@ def _cabecalho() -> str:
             st.markdown(
                 f'<div class="st-cabecalho">'
                 f"{marca.html()}"
-                # O logo ja carrega a assinatura "SWISSINT INTRACE AG"; repetir
-                # aqui seria redundancia. O subtitulo diz que ferramenta e esta.
+                # O logo ja carrega a assinatura da marca ("INTRACE Br" no
+                # lockup atual); repetir aqui seria redundancia. O subtitulo diz
+                # que ferramenta e esta.
                 f'<span class="st-titulo-tela">Simulador de viabilidade '
                 f"· refil de palhetas</span>"
                 f"</div>",

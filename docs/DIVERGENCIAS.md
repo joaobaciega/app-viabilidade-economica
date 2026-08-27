@@ -685,6 +685,55 @@ a deixa atrás do conteúdo.
 `test_T14_moeda_curta_espelha_o_eixo_da_tela` e
 `test_T14_abreviacao_de_moeda_e_so_para_eixo`.
 
+### D25 — Lockup novo: `assets/logo.jpeg`, dois andares, `INTRACE Br`
+
+Arquivo entregue pelo cliente em 27/08/2026 —
+`assets/logo-suica-tech-atual.jpeg`, 1600 × 301, JPEG, fundo `#FFFFFF` opaco.
+
+| | Lockup anterior | Lockup atual |
+|---|---|---|
+| Andares | três (palavra-marca, assinatura, tarja de slogan) | **dois** (palavra-marca + assinatura) |
+| Assinatura | `:::SWISSINT INTRACE AG` | **`INTRACE Br`** |
+| Bandeiras | suíça e alemã | nenhuma |
+| Tarja | `O NÚMERO 1 EM BORRACHA PARA PALHETA` | nenhuma |
+| Proporção | 1322 × 356 (3,7:1) | 1600 × 301 (**5,3:1**) |
+| No cabeçalho | 44 px → 163 px de largura | 44 px → **234 px** (teto de `max-width` é 380 px) |
+
+**A distinção cabeçalho/PDF ficou dormente.** Ela existia porque a tarja não
+sobrevive a 44 px e porque um superlativo no topo de uma ferramenta de auditoria
+trabalha contra a tese da tela (§4). Sem tarja, a mesma arte serve os dois
+lugares: `NOMES_COMPLETO` não encontra nada e `caminho_do_logo_completo()` cai
+em `_arquivo()`, que é o comportamento correto. O mecanismo **continua de pé** —
+basta soltar um `logo-completo.png` para o PDF voltar a ter arte própria.
+
+`FUNDO_CLARO` continua `True`, agora por **dois** motivos que andam juntos: a
+palavra-marca é vermelha (sobre a faixa vermelha original não haveria contraste)
+e o arquivo é JPEG, sem canal alfa — sobre qualquer faixa colorida o retângulo
+branco apareceria como uma caixa. Sobre o cabeçalho claro ele some, porque o
+branco do arquivo é `#FFFFFF` exato, o mesmo de `--superficie`.
+
+#### A armadilha que isto revelou, e o teste que a fecha
+
+Ao trocar o arquivo, `assets/logo.png` saiu antes de existir qualquer nome que
+`marca.NOMES` procura. O app **continuou subindo, verde, e sem marca nenhuma** —
+a reserva tipográfica entrou e o aviso foi para a faixa do vendedor, em 12 px,
+que é onde ele deve ficar em reunião (§7.4, §5.9) e é exatamente o lugar errado
+para um erro de deploy ser notado.
+
+`test_o_logo_entregue_esta_de_fato_em_uso` passou a exigir que o arquivo do
+repositório esteja **em uso**, e não apenas presente — e que ele não seja SVG,
+porque um SVG resolveria o cabeçalho e deixaria o **PDF sem logo** (o `fpdf2`
+não rasteriza SVG por caminho de imagem, e `_Documento.header` pula a extensão).
+
+#### ⚠️ Em aberto: `Intrace AG` no rodapé do documento
+
+O logo novo assina **`INTRACE Br`**; a linha de cabeçalho do PDF
+(`exportador_pdf`) continua dizendo `Suicatech · Intrace AG`. As duas coisas
+aparecem **a três centímetros uma da outra** na mesma folha, e ela sai da sala.
+
+Não foi alterado: qual entidade assina o documento é decisão do cliente, não
+de implementação. Trocar é uma linha.
+
 ### D4 — Vermelho não é usado em filete de seção *(revogada por D5)*
 
 Registro para rastreabilidade: na rodada anterior os filetes de seção usavam
