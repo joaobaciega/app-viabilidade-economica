@@ -175,14 +175,17 @@ def _linhas(e: Entradas, r: Resultado) -> list[tuple[str, str, str]]:
         linhas.append(
             (
                 "Mark up da operação",
-                "faturamento total ÷ custo total, refil e palheta original "
-                "somados. É adimensional — não é margem e não é percentual: "
-                "é quantas vezes o preço cobre o custo",
-                f"({formato.moeda_agregada(r.faturamento_refil)} + "
-                f"{formato.moeda_agregada(r.faturamento_atual)}) ÷ "
+                "o acréscimo sobre o custo total, refil e palheta original "
+                "somados. NÃO é margem percentual: margem divide pelo "
+                "faturamento, o mark up divide pelo custo — no mesmo cenário "
+                "os dois dão números diferentes",
+                f"[({formato.moeda_agregada(r.faturamento_refil)} + "
+                f"{formato.moeda_agregada(r.faturamento_atual)}) − "
+                f"({formato.moeda_agregada(r.cmv_refil)} + "
+                f"{formato.moeda_agregada(r.cmv_atual)})] ÷ "
                 f"({formato.moeda_agregada(r.cmv_refil)} + "
                 f"{formato.moeda_agregada(r.cmv_atual)})"
-                f" = {formato.multiplo(r.markup_operacao)}",
+                f" = {formato.markup_percentual(r.markup_operacao)}",
             )
         )
 

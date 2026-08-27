@@ -685,6 +685,75 @@ a deixa atrás do conteúdo.
 `test_T14_moeda_curta_espelha_o_eixo_da_tela` e
 `test_T14_abreviacao_de_moeda_e_so_para_eixo`.
 
+### D27 — Mark up em percentual, e "Nova margem com refil"
+
+Pedido do cliente em 27/08/2026: *"coloque o mark up em % (exemplo, ao invés de
+2x colocar 100%)"* e *"reescrever 'MARGEM COM PALHETAS - POR MÊS' para 'NOVA
+MARGEM COM REFIL'"*.
+
+#### 1. O mark up virou percentual
+
+| | Antes | Agora |
+|---|---|---|
+| Valor | `2,1×` | **`108%`** |
+| Apoio | `faturamento ÷ custo` | **`(faturamento − custo) ÷ custo`** |
+| Formatador | `formato.multiplo()` | `formato.markup_percentual()` |
+
+**É o acréscimo sobre o custo, não a razão.** Vender a duas vezes o custo é
+100%, e não 200% — a diferença entre as duas leituras é o próprio custo, e
+trocar uma pela outra **dobra o número**. O exemplo do cliente fixa qual das
+duas vale.
+
+**O cálculo não mudou.** `Resultado.markup_operacao` continua sendo a razão
+`faturamento ÷ custo`, adimensional, e continua `None` quando falta uma parcela.
+A conversão vive em `formato`, que é a camada de apresentação — `calculo.py`
+segue puro e auditável, e os testes de aritmética não foram tocados.
+
+**A linha de apoio passou a valer mais, e não menos.** Um percentual ao lado de
+duas colunas de reais convida a leitura de **margem percentual**, que é outra
+conta:
+
+| | Conta | T1 |
+|---|---|---|
+| Mark up | (faturamento − custo) ÷ **custo** | **108%** |
+| Margem % | (faturamento − custo) ÷ **faturamento** | 52% |
+
+O múltiplo `2,1×` era imune a essa confusão por construção — nenhuma margem se
+expressa em "vezes". O percentual não é, e a mitigação é o rótulo, que a §4 já
+exigia: **todo resultado financeiro diz qual conta ele é.**
+`test_markup_percentual_nao_e_margem_percentual` trava a distinção, e os testes
+de cartão da tela e do PDF exigem a linha da conta junto do número.
+
+**Mudou nos três lugares**, e de propósito: cartão da tela, cartão do PDF e
+painel de fórmula. `2,1×` na tela e `108%` no papel seria a tela se
+contradizendo na frente do cliente — o mesmo princípio da §5.11 sobre a curva e
+a manchete. O painel de fórmula passou a mostrar a subtração inteira:
+
+```
+[(R$ 20.781 + R$ 9.180) − (R$ 8.991 + R$ 5.400)] ÷ (R$ 8.991 + R$ 5.400) = 108%
+```
+
+`formato.multiplo()` **deixou de existir** — era usado só aqui.
+
+#### 2. "Nova margem com refil"
+
+O cartão de apoio do PDF que mostra a margem mensal do cenário adotado.
+
+| | Antes | Agora |
+|---|---|---|
+| Rótulo | `MARGEM COM PALHETAS, POR MÊS` | **`NOVA MARGEM COM REFIL`** |
+| Valor | `R$ 15.570` | `R$ 15.570` |
+| Apoio | `hoje R$ 3.780 → adotando o refil` | **`por mês · hoje R$ 3.780`** |
+
+O rótulo antigo dizia a grandeza e o período, mas não dizia que o número grande
+é o cenário **novo** — e o valor de hoje aparece logo abaixo dele, no mesmo
+cartão, sem distinção no rótulo. "Nova margem com refil" nomeia o que o número é.
+
+**O período desceu para o apoio, e não sumiu.** Sair do rótulo sem reaparecer
+deixaria o número grande sem período, e um valor mensal lido como anual erra por
+12×. `test_pdf_mark_up_em_percentual_e_a_nova_margem_nomeada` verifica as duas
+coisas.
+
 ### D26 — O PDF abre pelos dois números, e a tradução desce
 
 Pedido do cliente em 27/08/2026, logo depois de D24: *"no PDF, a primeira coisa

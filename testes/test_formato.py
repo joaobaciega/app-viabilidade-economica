@@ -87,6 +87,46 @@ def test_decimal_usa_virgula() -> None:
     assert formato.decimal(4.545) == "4,5"
 
 
+def test_markup_percentual_e_o_acrescimo_sobre_o_custo() -> None:
+    """D27 — o exemplo que o cliente deu: "ao invés de 2x colocar 100%".
+
+    O mark up é o **acréscimo** sobre o custo, não a razão. Vender a duas vezes
+    o custo é 100%, e trocar uma leitura pela outra **dobra o número** — é a
+    diferença do próprio custo.
+    """
+    assert formato.markup_percentual(2.0) == "100%"
+    assert formato.markup_percentual(1.0) == "0%"  # vende ao preço de custo
+    assert formato.markup_percentual(3.0) == "200%"
+    assert formato.markup_percentual(1.5) == "50%"
+
+    # T1: faturamento 29.961 ÷ custo 14.391 = 2,082 -> 108%
+    assert formato.markup_percentual(29961 / 14391) == "108%"
+
+
+def test_markup_percentual_nao_e_margem_percentual() -> None:
+    """As duas contas dão números diferentes, e a troca é o erro provável.
+
+    mark up  = (faturamento − custo) ÷ **custo**
+    margem % = (faturamento − custo) ÷ **faturamento**
+
+    No mesmo cenário do T1 uma dá 108% e a outra 52%. É por isso que o cartão
+    que mostra este número declara a conta embaixo dele (§4) — sem essa linha,
+    "108%" ao lado de duas colunas de reais lê como margem.
+    """
+    faturamento, custo = 29961.0, 14391.0
+    markup = formato.markup_percentual(faturamento / custo)
+    margem = formato.percentual((faturamento - custo) / faturamento)
+
+    assert markup == "108%"
+    assert margem == "52%"
+    assert markup != margem
+
+
+def test_markup_percentual_abaixo_do_custo_sai_negativo() -> None:
+    """Vender abaixo do custo é possível (plano §1.1) e não é escondido."""
+    assert formato.markup_percentual(0.9) == "-10%"
+
+
 def test_T14_moeda_curta_espelha_o_eixo_da_tela() -> None:
     """D24: `moeda_curta` e o gemeo do `labelExpr` do eixo Y do gráfico.
 

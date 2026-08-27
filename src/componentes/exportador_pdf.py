@@ -486,7 +486,16 @@ def _cartoes_de_apoio(doc: _Documento, r: Resultado) -> None:
 
 
 def _cartao_hoje_versus_refil(r: Resultado) -> visual.KPI:
-    """"hoje X -> com o refil Y" — o contraste que ancora o resultado.
+    """"NOVA MARGEM COM REFIL" — o contraste que ancora o resultado.
+
+    O ROTULO MUDOU EM D27, a pedido do cliente: era "Margem com palhetas, por
+    mês", que dizia a grandeza e o periodo mas nao dizia que o numero e o
+    cenario NOVO — o de hoje esta na linha de apoio, e os dois valores ficavam
+    sem distincao no rotulo. "Nova margem com refil" nomeia o que o numero e.
+
+    O periodo saiu do rotulo e desceu para o apoio, junto do valor de hoje:
+    "por mês · hoje R$ 3.780". Sem isso o numero grande perderia o periodo, e um
+    valor mensal lido como anual e erro de uma ordem de grandeza.
 
     So aparece com margem da original para comparar. Sem o custo dela nao existe
     margem dela, e comparar margem com faturamento misturaria grandezas
@@ -494,19 +503,15 @@ def _cartao_hoje_versus_refil(r: Resultado) -> visual.KPI:
     """
     if r.margem_atual is None or r.incremental_mensal is None:
         return visual.KPI(
-            "Margem com palhetas, por mês",
+            "Nova margem com refil",
             None,
             "custo da original não informado",
         )
-    # A SETA FICA NA LINHA DE APOIO, entre os dois estados, e nao colada no
-    # numero grande: "-> R$ 15.570" sozinho no lugar do valor parece um valor
-    # com um simbolo perdido na frente. Embaixo ela separa o antes do depois,
-    # que e a leitura de `_hoje_versus_refil` na tela.
     total = r.margem_atual + r.incremental_mensal
     return visual.KPI(
-        "Margem com palhetas, por mês",
+        "Nova margem com refil",
         formato.moeda_agregada(total),
-        f"hoje {formato.moeda_agregada(r.margem_atual)} → adotando o refil",
+        f"por mês · hoje {formato.moeda_agregada(r.margem_atual)}",
     )
 
 
@@ -532,11 +537,15 @@ def _nota_do_grupo(doc: _Documento, r: Resultado) -> None:
 
 
 def _cartao_markup(r: Resultado) -> visual.KPI:
+    # O APOIO NOMEIA A CONTA, e nao e decoracao (§4). "108%" ao lado de dois
+    # valores em reais convida a leitura de MARGEM percentual, que e outra
+    # conta — `(faturamento - custo) / faturamento` — e daria 52% no mesmo
+    # cenario. A linha embaixo do numero e o que impede a troca.
     if r.markup_operacao is not None:
         return visual.KPI(
             "Mark up da operação",
-            formato.multiplo(r.markup_operacao),
-            "faturamento ÷ custo",
+            formato.markup_percentual(r.markup_operacao),
+            "(faturamento − custo) ÷ custo",
         )
     # Sem custo total nao ha o que dividir. Um "1,0" ali significaria "vende ao
     # preco de custo", que e uma afirmacao que ninguem fez (§6.1.9, P9).

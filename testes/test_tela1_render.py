@@ -374,12 +374,20 @@ def test_render_T1_numeros_na_tela() -> None:
     assert "R$ 249.372" in texto, "o faturamento adicional anual"
     assert "R$ 20.781" in texto, "o faturamento adicional mensal"
 
-    # E o mark up sai como multiplo, com o sufixo que impede a leitura errada
-    # mais provavel (sem ele, "2,3" ao lado de duas colunas de reais le como
-    # reais).
+    # E o mark up sai em PERCENTUAL desde D27 — era "2,1×".
+    #
+    # 108%, e nao 208%: o mark up e o ACRESCIMO sobre o custo, e vender a duas
+    # vezes o custo e 100%, nao 200%. E nao e 52%, que seria a MARGEM
+    # percentual — outra conta, dividida pelo faturamento. O apoio do cartao
+    # existe para impedir essa troca, e por isso ele e verificado aqui junto.
     cartoes = [b for b in _blocos(at) if "Mark up da operação" in b]
     assert cartoes, "o cartão de mark up precisa existir"
-    assert "×" in cartoes[0], cartoes[0]
+    assert "108%" in cartoes[0], cartoes[0]
+    assert "×" not in cartoes[0], "o mark up deixou de ser múltiplo em D27"
+    assert "custo) ÷ custo" in cartoes[0], (
+        "o cartão precisa nomear a conta: sem ela, 108% ao lado de duas colunas "
+        "de reais lê como margem percentual"
+    )
 
 
 def test_render_T4_traseiro_vazio_fica_fora_da_conta() -> None:

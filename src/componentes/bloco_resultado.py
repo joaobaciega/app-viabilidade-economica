@@ -2,8 +2,8 @@
 
     ┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
     │ FATURAMENTO ADICIONAL │ │ MARGEM DE CONTRIB.    │ │ MARK UP DA OPERAÇÃO   │
-    │ R$ 249.372            │ │ R$ 141.480            │ │ 2,3×                  │
-    │ R$ 20.781 por mês     │ │ R$ 11.790 por mês     │ │ faturamento ÷ custo   │
+    │ R$ 249.372            │ │ R$ 141.480            │ │ 108%                  │
+    │ R$ 20.781 por mês     │ │ R$ 11.790 por mês     │ │ (fat. − custo)÷ custo │
     └───────────────────────┘ └───────────────────────┘ └───────────────────────┘
 
 A ORDEM E NORMATIVA e foi pedida pelo cliente em 27/08/2026, nesta sequencia:
@@ -33,8 +33,11 @@ REGRAS QUE CONTINUAM VALENDO INTEGRALMENTE:
     preenchimento vermelho
   - NAO USE st.metric — nao chega ao tamanho que a leitura a 1 m exige
   - o rotulo nomeia SO a conta que foi feita (§4, §6.1.7). "Mark up" nao e
-    "margem" e nao e "lucro": o cartao diz `faturamento ÷ custo` embaixo do
-    numero para que a conta seja lida junto com ele
+    "margem" e nao e "lucro": o cartao diz `(faturamento − custo) ÷ custo`
+    embaixo do numero para que a conta seja lida junto com ele. Desde D27 esse
+    apoio vale MAIS, e nao menos: o mark up passou a sair em percentual, e um
+    percentual ao lado de duas colunas de reais convida a leitura de margem
+    percentual — que divide pelo faturamento e da outro numero
   - o cashback ACRESCENTA uma linha e nunca altera nenhum dos tres numeros
 """
 
@@ -131,11 +134,15 @@ def _cartoes(r: Resultado) -> None:
 
 
 def _cartao_markup(r: Resultado) -> str:
+    # D27: em PERCENTUAL, e nao mais como multiplo. O apoio nomeia a conta, e
+    # nao e decoracao (§4): "108%" ao lado de dois valores em reais convida a
+    # leitura de MARGEM percentual, que e outra conta — `(faturamento - custo) /
+    # faturamento` — e daria 52% no mesmo cenario.
     if r.markup_operacao is not None:
         return _cartao(
             "Mark up da operação",
-            formato.multiplo(r.markup_operacao),
-            "faturamento ÷ custo",
+            formato.markup_percentual(r.markup_operacao),
+            "(faturamento − custo) ÷ custo",
         )
     # Acontece quando o custo total da operacao e zero — nao ha por que
     # dividir. Nao existe piso de preco (decisao F em aberto), portanto custo

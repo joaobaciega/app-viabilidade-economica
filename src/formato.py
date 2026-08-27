@@ -106,14 +106,26 @@ def decimal(valor: float, casas: int = 1) -> str:
     return f"{valor:.{casas}f}".replace(".", ",")
 
 
-def multiplo(valor: float, casas: int = 1) -> str:
-    """2.34 -> '2,3×'. O mark up da operacao (D21).
+def markup_percentual(razao: float) -> str:
+    """2.0 -> '100%'; 2.082 -> '108%'. O mark up da operacao (D27).
 
-    O sufixo `×` e o que impede a leitura errada mais provavel: sem ele, "2,3"
-    ao lado de duas colunas de reais le como reais. Mark up e adimensional, nao
-    e moeda e nao e percentual — e por isso NAO usa `moeda_*` nem `percentual`.
+    RECEBE A RAZAO `faturamento / custo` e devolve o ACRESCIMO SOBRE O CUSTO,
+    que e `(faturamento - custo) / custo` — a mesma coisa menos um. Vender a
+    duas vezes o custo e um mark up de 100%, nao de 200%: a diferenca entre as
+    duas leituras e o proprio custo, e trocar uma pela outra dobra o numero.
+
+    SUBSTITUI `multiplo()`, que devolvia '2,1×', a pedido do cliente em
+    27/08/2026. O que se perde com a troca esta registrado em D27, e a
+    mitigacao e o rotulo: o cartao que mostra este numero declara a conta
+    ("(faturamento - custo) / custo"), porque `108%` ao lado de dois valores em
+    reais convida a leitura de MARGEM PERCENTUAL — que e outra conta,
+    `(faturamento - custo) / faturamento`, e daria 52% no mesmo cenario.
+
+    Nao usa `MENOS` tipografico no negativo: quem chama e `percentual`, que ja
+    tem a forma dele, e um mark up negativo (vender abaixo do custo) e um
+    numero de diagnostico, nao uma manchete financeira.
     """
-    return decimal(valor, casas) + "×"
+    return percentual(razao - 1)
 
 
 # ---------------------------------------------------------------------------

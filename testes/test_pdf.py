@@ -232,6 +232,30 @@ def test_pdf_traz_os_tres_cenarios_medidos() -> None:
     assert "não é estimativa" in texto
 
 
+def test_pdf_mark_up_em_percentual_e_a_nova_margem_nomeada() -> None:
+    """D27 — as duas trocas de rótulo pedidas em 27/08/2026.
+
+    O mark up saiu de "2,1×" para "108%", e o cartão do contraste mensal saiu de
+    "Margem com palhetas, por mês" para "Nova margem com refil". Os dois cartões
+    vivem lado a lado na linha de apoio da página 1, e os dois têm de dizer o
+    que são: um percentual sem a conta embaixo lê como margem, e um valor em R$
+    sem "nova" não se distingue do valor de hoje, que está na linha abaixo dele.
+    """
+    texto = _texto_do_pdf(_pdf("T1"))
+
+    assert "108%" in texto
+    assert "2,1×" not in texto, "o mark up deixou de ser múltiplo em D27"
+    assert "(faturamento - custo) ÷ custo" in texto, (
+        "o cartão precisa nomear a conta — o travessão vira hífen em Latin-1"
+    )
+
+    assert "NOVA MARGEM COM REFIL" in texto
+    assert "MARGEM COM PALHETAS" not in texto
+    # E o período não se perdeu ao sair do rótulo: ele desceu para o apoio,
+    # junto do valor de hoje. Um valor mensal lido como anual erra por 12×.
+    assert "por mês · hoje R$ 3.780" in texto
+
+
 def test_pdf_cenarios_nao_prometem() -> None:
     """§4 / §12 no documento inteiro, agora que ele tem cara de material.
 
@@ -275,8 +299,8 @@ def test_pdf_transcreve_o_travessao_em_vez_de_apagar() -> None:
     assert transcrever("hoje → amanhã") == "hoje -> amanhã"
     assert transcrever("−R$ 10") == "-R$ 10"
     # O que JA cabia em Latin-1 nao pode ser tocado.
-    assert transcrever("Simulação · 2,3× · faturamento ÷ custo") == (
-        "Simulação · 2,3× · faturamento ÷ custo"
+    assert transcrever("Simulação · 90 pares × R$ 197,90 ÷ custo") == (
+        "Simulação · 90 pares × R$ 197,90 ÷ custo"
     )
 
     texto = _texto_do_pdf(_pdf("T1"))
