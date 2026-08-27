@@ -1,32 +1,33 @@
-"""§5.10 — Revelacao progressiva: "Ajustes avancados".
+"""Os dois blocos que MORAVAM em "Ajustes avancados". D21.
 
-"Segurar o limite de campos editaveis visiveis. A planilha original tem ~30
-celulas; num tablet, na frente do cliente, isso e morte."
+O expander da §5.10 DEIXOU DE EXISTIR em 27/08/2026, a pedido do cliente: o que
+estava escondido atras dele subiu para a superficie primaria, junto dos outros
+campos. Este modulo continua sendo a casa dos dois blocos que vinham de la —
+o nome do arquivo guarda de onde eles vieram.
 
-REGRAS (§5.10):
-  - fechado por padrao, SEMPRE, inclusive depois de aberto na simulacao
-    anterior. Ele reabre fechado a cada carga da pagina
-  - NENHUM campo dentro dele altera o resultado sem que a faixa de premissas
-    (§5.6) reflita a mudanca. "Uma alteracao escondida atras de um acordeao que
-    muda o numero da manchete sem deixar rastro e A PIOR FALHA POSSIVEL"
-  - o expander conta como UM elemento na contagem de densidade
+    operacao()   consultores por ponto, dias uteis
+    cashback()   R$ por venda x 3 destinatarios x 2 categorias (grade 2x3)
 
-CONTEUDO, apos a revisao de 11/08/2026 (decisao do cliente):
+O QUE A §5.10 PROTEGIA, e o que se perdeu com o fim do expander:
 
-    A operacao da concessionaria   consultores por ponto, dias uteis
-    Cashback                       R$ por venda x 3 destinatarios x 2 categorias
+    "Segurar o limite de campos editaveis visiveis. A planilha original tem ~30
+    celulas; num tablet, na frente do cliente, isso e morte."
 
-O que SAIU, e por que:
+Com estes oito campos na superficie, a Tela 1 passa de nove para dezessete
+controles visiveis. O teto de seis da §6.1.4 ja estava rompido por D8; D21 o
+abandona de vez. A contrapartida que continua de pe: cada bloco tem titulo que
+diz que pergunta ele responde, e nenhum campo altera o resultado sem que a
+faixa de premissas (§5.6) reflita a mudanca — essa regra da §5.10 NAO caiu com
+o expander, e e a que importava.
+
+O que continua fora, e por que:
 
   - SUBSTITUICAO (canibalizacao) — retirada. Consequencia declarada em
-    parametros.CANIBALIZACAO_MODELADA e na faixa de premissas: o app passa a
-    assumir que nenhuma venda de refil tira venda da palheta original
+    parametros.CANIBALIZACAO_MODELADA e na faixa de premissas: o app assume que
+    nenhuma venda de refil tira venda da palheta original
   - COMISSAO e IMPOSTOS — absorvidos pelo Cashback, que e o programa real. O
-    valor destinado ao consultor por venda E a comissao dele, e agora vive num
-    lugar so
-  - INVESTIMENTO, ESTOQUE E PAYBACK — o bloco nunca existiu (⚠️ G), e a
-    declaracao de que ele nao existe tambem saiu daqui. A decisao G continua
-    visivel onde ela vale algo: no bloco "menos codigo na prateleira" da Tela 3
+    valor destinado ao consultor por venda E a comissao dele
+  - INVESTIMENTO, ESTOQUE E PAYBACK — o bloco nunca existiu (⚠️ G)
 """
 
 from __future__ import annotations
@@ -41,62 +42,59 @@ from src.estado import (
     K_CONSULTORES,
     K_DIAS_UTEIS,
     K_PONTOS,
-    contar_avancados_alterados,
 )
 from src.formato import total_derivado_consultores
 
 
-def painel() -> None:
-    alterados = contar_avancados_alterados()
-    rotulo = "Ajustes avançados"
-    if alterados:
-        rotulo += f"  ·  {alterados} alterado{'s' if alterados != 1 else ''}"
-
-    # expanded=False sempre: reabre fechado a cada carga da pagina.
-    with st.expander(rotulo, expanded=False):
-        _a_operacao()
-        st.divider()
-        _cashback()
+# A nota dos dois campos de operacao. Fica no fim da LINHA, e nao embaixo de
+# cada campo: sao dois campos com a mesma ressalva, e repetir a ressalva duas
+# vezes gasta altura sem acrescentar leitura.
+NOTA_OPERACAO = (
+    "Consultores e dias úteis não entram em nenhuma conta de margem — servem "
+    "só à verificação de carga por consultor."
+)
 
 
-def _a_operacao() -> None:
-    st.markdown("**A operação da concessionária**")
-    st.caption(
-        "Estes dois não entram em nenhuma conta de margem — servem só à "
-        "verificação de carga por consultor."
+def campo_consultores() -> None:
+    """Consultores por ponto de venda, com o total derivado (§5.1).
+
+    Alimenta so a regra R1 de plausibilidade (carga por consultor por dia), que
+    avisa na faixa do vendedor sem NUNCA bloquear o calculo (§6.1.8).
+    """
+    pontos = int(st.session_state.get(K_PONTOS) or 1)
+    campo_quantidade(
+        chave=K_CONSULTORES,
+        rotulo="Consultores por ponto de venda",
+        derivado=lambda v: total_derivado_consultores(v, pontos),
     )
 
-    col_a, col_b = st.columns(2, gap="large")
-    pontos = int(st.session_state.get(K_PONTOS) or 1)
 
-    with col_a:
-        campo_quantidade(
-            chave=K_CONSULTORES,
-            rotulo="Consultores por ponto de venda",
-            derivado=lambda v: total_derivado_consultores(v, pontos),
-        )
-    with col_b:
-        st.number_input(
-            "Dias úteis por mês",
-            min_value=1,
-            max_value=31,
-            step=1,
-            key=K_DIAS_UTEIS,
-        )
+def campo_dias_uteis() -> None:
+    """Dias uteis por mes. Tem default (22) e quase nunca muda.
+
+    Nao passa por `campo_quantidade` porque nao tem total derivado: um total de
+    dias uteis somado entre pontos de venda nao significa nada.
+    """
+    st.number_input(
+        "Dias úteis por mês",
+        min_value=1,
+        max_value=31,
+        step=1,
+        key=K_DIAS_UTEIS,
+    )
 
 
-def _cashback() -> None:
+def cashback() -> None:
     """O programa de cashback: R$ por venda, por destinatario e por categoria.
 
     A ARMADILHA que este bloco existe para nao cair (§6.1.7, plano decisao A):
     o cashback e pago pela SUICATECH, saindo da margem dela. Ele NAO desconta
     nada da margem da concessionaria. Preencher aqui ACRESCENTA uma linha ao
-    resultado e nunca altera o valor da manchete.
+    resultado e nunca altera nenhum dos tres numeros.
 
     "Se a implementacao subtrair cashback da margem exibida, ela inverteu o
     principal argumento comercial do bloco."
     """
-    st.markdown("**Cashback**  ·  valor por venda destinado a cada parte")
     st.caption(
         "Pago pela Suicatech, sai da margem dela. **Não desconta** da margem da "
         "concessionária — aparece como uma linha própria no resultado. Deixe em "
@@ -122,12 +120,19 @@ def _linha_cashback(categoria: str, unidade: str, chaves: tuple[str, ...]) -> No
     O rotulo de cada campo e colapsado — quem nomeia a coluna e o cabecalho da
     grade. Repetir "Consultor" em seis rotulos gastaria altura e leitura sem
     acrescentar informacao.
+
+    O rotulo INVISIVEL, porem, nomeia o destinatario ("Dianteiro · Consultor") e
+    nao o indice da chave ("Dianteiro 0"), como era antes: `label_visibility`
+    esconde o rotulo da tela mas o leitor de tela continua lendo, e "Dianteiro 0"
+    nao diz nada a quem depende dele (§9.6).
     """
     colunas = st.columns([2, *([3] * len(chaves))], gap="small")
     colunas[0].markdown(
         f"<p class='st-cash-linha'><b>{categoria}</b><br>{unidade}</p>",
         unsafe_allow_html=True,
     )
-    for coluna, chave in zip(colunas[1:], chaves):
+    for coluna, chave, nome in zip(
+        colunas[1:], chaves, P.DESTINATARIOS_CASHBACK
+    ):
         with coluna:
-            campo_moeda(chave=chave, rotulo=f"{categoria} {chave[-1]}", oculto=True)
+            campo_moeda(chave=chave, rotulo=f"{categoria} · {nome}", oculto=True)

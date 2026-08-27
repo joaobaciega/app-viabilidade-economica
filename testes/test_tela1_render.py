@@ -13,6 +13,7 @@ from __future__ import annotations
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from src import parametros as P
 from testes.conftest import CASOS
 
 TEMPO = 120
@@ -44,6 +45,28 @@ def _texto(at: AppTest) -> str:
     return "\n".join(_blocos(at) + [c.value for c in at.caption])
 
 
+def _texto_sem_a_curva(at: AppTest) -> str:
+    """O conteudo renderizado SEM a tabela gemea da curva.
+
+    Serve as buscas por valor PROIBIDO, e pelo mesmo motivo que `_blocos`
+    exclui a folha de estilo: a busca casaria com a coisa errada.
+
+    O gemeo em tabela (§5.11) varre o dominio INTEIRO do aproveitamento, de 5
+    em 5 pontos percentuais. Qualquer numero sentinela — inclusive os que
+    denunciariam a derivacao proibida do traseiro (§5.13) — aparece em algum
+    ponto dessa varredura por coincidencia aritmetica, com o resultado
+    perfeitamente correto. Ali ele e um ponto da curva, nao a manchete.
+
+    Enquanto a tabela era um `st.dataframe` isso nao acontecia: a canvas do
+    dataframe nao entrava no markdown renderizado. A tabela propria entra — e
+    e melhor assim, porque agora e texto de verdade, conferivel e copiavel.
+    """
+    return "\n".join(
+        [bloco for bloco in _blocos(at) if 'class="st-tabela"' not in bloco]
+        + [c.value for c in at.caption]
+    )
+
+
 def _preencher_dianteiro(at: AppTest) -> AppTest:
     """Preenche a operacao, a ancora e o DIANTEIRO, e aperta REALISTA.
 
@@ -63,7 +86,39 @@ def _preencher_dianteiro(at: AppTest) -> AppTest:
     at.number_input(key="custo_original").set_value(base["custo_original"]).run()
     at.number_input(key="preco_dianteiro").set_value(base["preco_dianteiro"]).run()
     at.number_input(key="custo_dianteiro").set_value(base["custo_dianteiro"]).run()
-    at.button(key="btn_preset_realista").click().run()
+
+    # O CENARIO VEM DOS SLIDERS, e nao de `btn_preset_realista`.
+    #
+    # Antes este helper clicava REALISTA. Desde D21 o realista e 40%/10%, e o
+    # bloco `base` de casos.json continua em 30%/10% — os numeros de ouro dos
+    # 16 casos NAO foram recalculados de proposito, para nao refazer a mao a
+    # aritmetica de T1, T2, T3, T4, T11 e de todo o test_pdf. Ajustar os
+    # sliders chega ao mesmo estado sem depender de qual preset e qual.
+    #
+    # Que apertar REALISTA escreve 40% e 10% e coberto por
+    # `test_render_preset_realista_escreve_o_par_medido`.
+    at.slider(key="conv_dianteiro").set_value(
+        int(round(base["aproveitamento_dianteiro"] * 100))
+    ).run()
+    at.slider(key="conv_traseiro").set_value(
+        int(round(base["aproveitamento_traseiro"] * 100))
+    ).run()
+
+    return _revelar(at)
+
+
+def _revelar(at: AppTest) -> AppTest:
+    """Aperta "Mostrar Resultado" (D21). Sem isso nao existe numero na tela.
+
+    A tela abre so com os campos: durante o preenchimento nada e calculado e
+    nada aparece. O botao so habilita com os seis obrigatorios preenchidos, e
+    todo teste que verifica numero na tela precisa passar por aqui.
+
+    Idempotente: com o resultado ja visivel o botao nao existe mais (o lugar
+    dele e ocupado por "Esconder resultado"), e o helper nao faz nada.
+    """
+    if any(b.key == "btn_mostrar" for b in at.button):
+        at.button(key="btn_mostrar").click().run()
     return at
 
 
@@ -86,21 +141,125 @@ def test_render_app_sobe_sem_excecao() -> None:
     assert not at.exception, at.exception
 
 
-def test_render_estado_inicial_pede_a_operacao() -> None:
-    """E1 (§6.1.6): no lugar do bloco de resultado, a pergunta que abre a
-    conversa. §7.3: "roteiro de pitch, nao mensagem de erro."
+def test_render_estado_inicial_abre_so_com_os_campos() -> None:
+    """D21: a tela abre com os campos e o botao desabilitado. Nenhum numero.
 
-    A pergunta agora e respondivel de cabeca por um gerente de pos-venda —
-    passagens, quantas palhetas ele vende e a quanto — em vez da margem de
-    contribuicao mensal com palhetas, que ninguem sabe de cor.
+    SUBSTITUI `test_render_estado_inicial_pede_a_operacao`, que exigia o
+    roteiro de pitch do estado vazio dentro do bloco de resultado ("Quantas
+    passagens por mês esta oficina recebe?", §6.1.6 e §7.3: "o vazio desta tela
+    nao e uma falha, e a abertura da conversa"). Esse roteiro deixou de existir:
+    o vazio da tela agora e a propria area de campos.
+
+    O que este teste trava no lugar, e que e o essencial do modelo novo:
+      1. o botao existe desde a primeira carga — e ele que ensina o modelo da
+         tela ("preencha e aperte"). Um botao que aparece do nada quando o
+         sexto campo e preenchido nao ensinaria nada
+      2. ele comeca DESABILITADO
+      3. o que falta e DITO, sem componente de alerta e sem vocabulario de erro
+      4. nenhum valor em R$ na tela antes do toque
     """
-    texto = _texto(_app())
-    assert "Quantas passagens por mês esta oficina recebe?" in texto
-    assert "quantas palhetas são vendidas" in texto
-    assert "Preço original" in texto, (
-        "o estado vazio precisa apontar para a aba onde o preco da original e "
-        "conferido ao vivo"
+    at = _app()
+
+    botoes = {b.key: b for b in at.button}
+    assert "btn_mostrar" in botoes, "o botao precisa existir na primeira carga"
+    assert botoes["btn_mostrar"].proto.disabled, (
+        "o botao nao pode abrir habilitado — nao ha o que mostrar"
     )
+
+    texto = _texto(at)
+    assert "Falta preencher" in texto
+    assert "passagens por mês" in texto
+
+    assert "R$" not in texto, (
+        "nenhum valor em R$ pode aparecer antes do toque explicito:\n" + texto[:400]
+    )
+    assert not at.error and not at.warning
+
+
+def test_render_botao_habilita_quando_os_obrigatorios_estao_preenchidos() -> None:
+    """D21 — o gate, campo por campo.
+
+    O traseiro NAO entra na conta de obrigatorios: vazio ali significa "fora da
+    conta" e e um estado legitimo (§5.13). Se algum dia ele passar a ser
+    exigido, este teste reprova — e e essa a intencao.
+    """
+    at = _app()
+    base = CASOS["base"]
+
+    obrigatorios = (
+        "passagens_por_ponto",
+        "palhetas_originais_mes",
+        "preco_original",
+        "custo_original",
+        "preco_dianteiro",
+        "custo_dianteiro",
+    )
+
+    for i, chave in enumerate(obrigatorios):
+        assert at.button(key="btn_mostrar").proto.disabled, (
+            f"o botão habilitou faltando {len(obrigatorios) - i} campo(s)"
+        )
+        at.number_input(key=chave).set_value(base[chave]).run()
+
+    assert not at.button(key="btn_mostrar").proto.disabled, (
+        "com os seis obrigatórios preenchidos o botão precisa habilitar — o "
+        "traseiro é opcional de propósito"
+    )
+    assert at.number_input(key="preco_traseiro").value is None
+
+
+def test_render_resultado_so_aparece_depois_do_toque() -> None:
+    """D21: preencher NAO revela. O resultado espera o botao."""
+    at = _app()
+    base = CASOS["base"]
+    for chave in (
+        "passagens_por_ponto",
+        "palhetas_originais_mes",
+        "preco_original",
+        "custo_original",
+        "preco_dianteiro",
+        "custo_dianteiro",
+    ):
+        at.number_input(key=chave).set_value(base[chave]).run()
+
+    assert "st-cartao-valor" not in _texto(at), (
+        "com tudo preenchido e sem clique, nenhum número pode estar na tela"
+    )
+
+    at.button(key="btn_mostrar").click().run()
+    assert "st-cartao-valor" in _texto(at)
+
+
+def test_render_resultado_esconde_ao_apagar_um_obrigatorio() -> None:
+    """D21: o resultado nao sobrevive a entrada que deixou de existir.
+
+    Sem isso, apagar as passagens deixaria na tela um numero que a entrada
+    atual nao produz mais — pior do que nao mostrar nada.
+    """
+    at = _preencher_cenario_base(_app())
+    assert "st-cartao-valor" in _texto(at)
+
+    at.number_input(key="passagens_por_ponto").set_value(None).run()
+
+    assert "st-cartao-valor" not in _texto(at)
+    assert at.button(key="btn_mostrar").proto.disabled
+    assert "Falta preencher" in _texto(at)
+
+
+def test_render_esconder_resultado_nao_apaga_campo() -> None:
+    """"Esconder resultado" volta ao pitch inicial sem limpar nada.
+
+    E o oposto de `novo cliente`, que apaga preco, custo e ancora.
+    """
+    at = _preencher_cenario_base(_app())
+    at.button(key="btn_esconder").click().run()
+
+    assert "st-cartao-valor" not in _texto(at)
+    assert at.number_input(key="preco_dianteiro").value == CASOS["base"][
+        "preco_dianteiro"
+    ]
+    # E o botao de mostrar volta, habilitado — nada foi perdido.
+    assert not at.button(key="btn_mostrar").proto.disabled
 
 
 def test_render_estado_inicial_nao_exibe_zero_reais() -> None:
@@ -134,29 +293,62 @@ def test_render_legenda_do_campo_vazio_existe() -> None:
     cliente pergunta se o app esta quebrado."
     """
     texto = _texto(_app())
-    assert "negociados caso a caso" in texto
-    assert "em branco de propósito" in texto
+
+    # PRECO TABELADO (D21). O texto dizia "negociados caso a caso"; o cliente
+    # corrigiu — o preco do refil e de tabela, e nenhum texto da tela pode
+    # sugerir negociacao por cliente.
+    assert "caso a caso" not in texto, (
+        "o preço do refil é tabelado — nenhum texto pode dizer que é negociado "
+        "caso a caso"
+    )
+    assert "tabela Suicatech vigente" in texto
+    # E a consequencia de deixar vazio continua declarada, que e o que a §5.2
+    # queria: o campo vazio nao pode parecer esquecido.
+    assert "fora da conta" in texto
+    assert "nunca estimado" in texto
 
 
-def test_render_exatamente_seis_campos_primarios() -> None:
-    """§6.1.4 / §12: exatamente 6 campos editaveis fora de Ajustes avancados.
+def test_render_todos_os_campos_estao_na_superficie_primaria() -> None:
+    """D21: nada de campo escondido. SUBSTITUI o teto de seis da §6.1.4.
 
-    Os 5 number_input primarios + o controle de aproveitamento (presets +
-    slider), que conta como UM: e um controle sobre uma grandeza.
+    O teste antigo (`test_render_exatamente_seis_campos_primarios`) afirmava o
+    teto de "exatamente seis campos editaveis visiveis fora de Ajustes
+    avancados" — e, na pratica, nao contava campo nenhum: ele verificava um
+    subconjunto e terminava em `assert 5 + 1 == 6`, que e verdade sempre. O
+    teto ja estava rompido por D8 e foi abandonado por D21.
+
+    O que este teste trava agora: TODOS os campos, inclusive os oito que
+    moravam no expander, estao alcancaveis sem abrir nada.
     """
     at = _app()
-    primarios = {
-        "pontos_de_venda",
+    chaves = {w.key for w in at.number_input}
+
+    obrigatorios = {
         "passagens_por_ponto",
+        "palhetas_originais_mes",
+        "preco_original",
+        "custo_original",
         "preco_dianteiro",
         "custo_dianteiro",
-        "palhetas_originais_mes",
     }
-    rotulados = {w.key for w in at.number_input}
-    assert primarios <= rotulados
-    # O sexto campo e o aproveitamento.
+    assert obrigatorios <= chaves, obrigatorios - chaves
+
+    opcionais = {"pontos_de_venda", "preco_traseiro", "custo_traseiro"}
+    assert opcionais <= chaves, opcionais - chaves
+
+    # Os oito que vinham de Ajustes avancados: dois de operacao e a grade 2x3.
+    dos_avancados = {"consultores_por_ponto", "dias_uteis"} | {
+        f"cashback_{lado}_{i}" for lado in ("d", "t") for i in range(3)
+    }
+    assert dos_avancados <= chaves, (
+        "os campos que moravam no expander precisam estar na superficie "
+        f"primaria: faltam {sorted(dos_avancados - chaves)}"
+    )
+
+    # E os dois controles de aproveitamento continuam existindo, um por
+    # categoria — nunca um so acoplando as duas (risco n. 1 do plano).
     assert at.slider(key="conv_dianteiro") is not None
-    assert len(primarios) + 1 == 6
+    assert at.slider(key="conv_traseiro") is not None
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +364,19 @@ def test_render_T1_numeros_na_tela() -> None:
 
     assert "R$ 141.480" in texto, "o valor anual precisa aparecer sem centavos"
     assert "R$ 11.790" in texto, "o valor mensal precisa aparecer"
-    assert "3 a cada 10 carros que entram na oficina" in texto
+
+    # Os dois numeros que D21 acrescentou. O faturamento mensal do T1 e
+    # R$ 20.781 — o mesmo valor que docs/DIVERGENCIAS.md §5 registra como
+    # medido no navegador — e o cartao mostra o anual, 12x isso.
+    assert "R$ 249.372" in texto, "o faturamento adicional anual"
+    assert "R$ 20.781" in texto, "o faturamento adicional mensal"
+
+    # E o mark up sai como multiplo, com o sufixo que impede a leitura errada
+    # mais provavel (sem ele, "2,3" ao lado de duas colunas de reais le como
+    # reais).
+    cartoes = [b for b in _blocos(at) if "Mark up da operação" in b]
+    assert cartoes, "o cartão de mark up precisa existir"
+    assert "×" in cartoes[0], cartoes[0]
 
 
 def test_render_T4_traseiro_vazio_fica_fora_da_conta() -> None:
@@ -180,26 +384,58 @@ def test_render_T4_traseiro_vazio_fica_fora_da_conta() -> None:
 
     R$ 122.040/ano, nao R$ 141.480. Se aparecesse 142.380 haveria derivacao
     por /2 em algum lugar (§5.13).
+
+    As duas buscas por valor proibido rodam sobre o texto SEM a tabela da
+    curva: lá dentro o dominio inteiro do aproveitamento esta tabulado, e um
+    dos pontos da varredura cai em R$ 142.380 sem que nada esteja derivado.
+    Ver `_texto_sem_a_curva`.
     """
-    texto = _texto(_preencher_dianteiro(_app()))
+    at = _preencher_dianteiro(_app())
+    texto = _texto(at)
     assert "R$ 122.040" in texto
     assert "R$ 10.170" in texto
-    assert "R$ 141.480" not in texto
-    assert "R$ 142.380" not in texto, "sinal de derivacao proibida do traseiro"
+
+    fora_da_curva = _texto_sem_a_curva(at)
+    assert "R$ 141.480" not in fora_da_curva
+    assert "R$ 142.380" not in fora_da_curva, (
+        "sinal de derivacao proibida do traseiro"
+    )
 
 
-def test_render_traducao_vem_antes_e_maior_que_o_anual() -> None:
-    """P2 / §5.5 / §12 — a regra mais facil de inverter.
+def test_render_ordem_dos_tres_cartoes_no_artefato() -> None:
+    """D21 — a ordem dos tres numeros, verificada no ARTEFATO.
 
-    Verificado no ARTEFATO: a classe .st-traducao aparece antes de .st-anual no
-    HTML renderizado, e nao apenas na ordem do codigo-fonte.
+    SUBSTITUI `test_render_traducao_vem_antes_e_maior_que_o_anual`, que exigia
+    `.st-traducao` antes de `.st-anual` no HTML. A traducao saiu da tela; a
+    mesma regra continua travada no PDF, por `test_pdf_traducao_vem_antes_do_anual`.
+
+    Verificar no artefato e nao so na fonte importa porque em Streamlit a
+    hierarquia visual E a ordem das chamadas: uma reordenacao acidental de
+    colunas passaria pela checagem de fonte e apareceria so aqui.
     """
     at = _preencher_cenario_base(_app())
     texto = _texto(at)
 
-    assert "st-traducao" in texto and "st-anual" in texto
-    assert texto.index("st-traducao") < texto.index("st-anual"), (
-        "a traducao em escala humana precisa ser renderizada ANTES do valor anual"
+    for rotulo in (
+        "Faturamento adicional",
+        "Margem de contribuição adicional",
+        "Mark up da operação",
+    ):
+        assert rotulo in texto, rotulo
+
+    posicoes = [
+        texto.index("Faturamento adicional"),
+        texto.index("Margem de contribuição adicional"),
+        texto.index("Mark up da operação"),
+    ]
+    assert posicoes == sorted(posicoes), (
+        "a ordem na tela precisa ser faturamento -> margem -> mark up"
+    )
+
+    # E a traducao em escala humana NAO aparece mais na tela.
+    assert "carros que entram na oficina" not in texto, (
+        "a tradução saiu da tela por D21 — ela segue no PDF e no painel de "
+        "fórmula, não aqui"
     )
 
 
@@ -226,22 +462,58 @@ def test_render_faixa_de_premissas_sempre_visivel() -> None:
         assert "venda nova" in texto
 
 
-def test_render_procedencia_do_traseiro_derivada_nao_carteira() -> None:
-    """§5.7 — a mitigacao do risco n. 1 do plano, na tela.
+def test_render_procedencia_do_traseiro_e_declarada_na_faixa() -> None:
+    """§5.7 — a procedencia de CADA numero aparece na tela.
 
-    Com o preset PESSIMISTA, o traseiro (7%) e DERIVADO. Ele nunca pode sair
-    marcado como carteira.
+    O QUE MUDOU EM D21: com o preset PESSIMISTA, o traseiro era 7% e era
+    DERIVADO do dianteiro pela mesma proporcao, e a tela era obrigada a marcar
+    `≈ derivado` e "não medido" — apresentar derivacao com autoridade de medicao
+    e o risco n. 1 do plano. O cliente informou em 27/08/2026 que as tres faixas
+    do traseiro (5/10/18) sao medidas na carteira, e a marca de derivacao saiu
+    porque nao ha mais derivacao.
+
+    O que continua travado: a faixa de premissas DECLARA a procedencia do
+    traseiro, qualquer que seja ela. O dia em que um preset voltar a ser
+    derivado, este teste continua valendo e a marca reaparece.
     """
     at = _preencher_cenario_base(_app())
     at.number_input(key="preco_traseiro").set_value(99.0).run()
     at.number_input(key="custo_traseiro").set_value(45.0).run()
     at.button(key="btn_preset_pessimista").click().run()
 
-    texto = _texto(at)
-    assert "≈ derivado" in texto, (
-        "o traseiro pessimista e derivacao por proporcao, nao medicao"
+    # `_blocos` exclui a folha de estilo: ela DEFINE `.st-premissas` e casaria
+    # com a busca antes da faixa de verdade.
+    faixas = [b for b in _blocos(at) if "st-premissas" in b]
+    assert faixas, "a faixa de premissas precisa existir"
+    faixa = faixas[0]
+
+    assert "traseiro" in faixa
+    assert "◆ carteira" in faixa, (
+        "a procedência do traseiro precisa estar declarada na faixa"
     )
-    assert "não medido" in texto
+    assert "≈ derivado" not in faixa, (
+        "nenhum preset é derivado desde D21 — se voltar a ser, a legenda de "
+        "parametros.LEGENDA_PRESETS_TRASEIRO tem de voltar junto"
+    )
+
+
+def test_render_preset_realista_escreve_o_par_medido() -> None:
+    """D21: REALISTA escreve 40% no dianteiro e 10% no traseiro, de uma vez.
+
+    Um preset e um PAR medido: apertar o botao escreve as duas grandezas. Mover
+    o slider do dianteiro, ao contrario, nunca toca no traseiro — e essa
+    assimetria e a mitigacao do risco n. 1 do plano.
+    """
+    at = _preencher_dianteiro(_app())
+    at.button(key="btn_preset_realista").click().run()
+
+    realista = next(p for p in P.PRESETS if p.nome == "realista")
+    assert at.slider(key="conv_dianteiro").value == int(
+        round(realista.dianteiro * 100)
+    )
+    assert at.slider(key="conv_traseiro").value == int(
+        round(realista.traseiro * 100)
+    )
 
 
 def test_render_marcador_de_decisao_aberta_visivel() -> None:
@@ -284,13 +556,16 @@ def test_render_cashback_mostra_o_rateio_por_destinatario() -> None:
 
 
 def test_render_rotulo_nunca_menciona_cashback() -> None:
-    """§6.1.7 / §12: "cashback" nunca aparece no rotulo do resultado."""
+    """§6.1.7 / §12: "cashback" nunca aparece no rotulo do resultado.
+
+    Desde D21 os rotulos do resultado sao os dos tres cartoes.
+    """
     at = _preencher_cashback(_preencher_cenario_base(_app()))
 
     # `_blocos` exclui a folha de estilo — ela tem um comentario de CSS com a
     # palavra "cashback" e casaria com a busca.
     for bloco in _blocos(at):
-        if "st-rotulo-resultado" in bloco:
+        if "st-cartao-rotulo" in bloco:
             assert "cashback" not in bloco.lower()
 
 
@@ -309,11 +584,13 @@ def test_render_resultado_negativo_sem_vermelho() -> None:
     assert not at.error
     assert not at.warning
     # E nenhum uso do vermelho da marca num numero de resultado (§3.1, §13.1):
-    # "numero financeiro em vermelho le como prejuizo".
-    for bloco in _blocos(at):
-        if "st-anual" in bloco or "st-mensal" in bloco:
-            assert "C8102E" not in bloco, f"vermelho num numero: {bloco[:120]}"
-            assert "color:" not in bloco, f"cor inline num numero: {bloco[:120]}"
+    # "numero financeiro em vermelho le como prejuizo". Desde D21 a classe a
+    # vigiar e a dos cartoes, nao mais `.st-anual` / `.st-mensal`.
+    cartoes = [b for b in _blocos(at) if "st-cartao-valor" in b]
+    assert cartoes, "os cartoes de resultado precisam existir"
+    for bloco in cartoes:
+        assert "C8102E" not in bloco, f"vermelho num numero: {bloco[:120]}"
+        assert "color:" not in bloco, f"cor inline num numero: {bloco[:120]}"
 
 
 def test_render_nenhum_componente_de_alerta_em_nenhum_estado() -> None:
@@ -346,17 +623,29 @@ def test_render_aviso_de_plausibilidade_so_na_faixa() -> None:
     faixas = [m.value for m in at.markdown if "st-faixa-vendedor" in m.value]
     assert faixas, "a faixa do vendedor precisa existir"
     assert any("por consultor por dia" in f for f in faixas)
-    # E o calculo NAO foi bloqueado.
-    assert "por ano" in texto
+    # E o calculo NAO foi bloqueado (§6.1.8: "um bloqueio na frente do cliente
+    # encerra a cena"). O botao de D21 gateia a EXIBICAO, nunca o calculo: com o
+    # resultado revelado, um cenario implausivel continua produzindo numero.
+    assert "Valores anuais" in texto
+    assert "st-cartao-valor" in texto
 
 
-def test_render_ajustes_avancados_abre_fechado() -> None:
-    """§5.10: fechado por padrao, SEMPRE, a cada carga da pagina."""
+def test_render_ajustes_avancados_nao_existe_mais() -> None:
+    """D21: o expander da §5.10 foi dissolvido. Nada de campo escondido.
+
+    O teste anterior exigia o oposto — que o expander EXISTISSE e abrisse
+    fechado a cada carga da pagina ("§5.10: fechado por padrao, SEMPRE"). O
+    cliente pediu que nada ficasse escondido, e o conteudo dele subiu para a
+    superficie primaria; `test_render_todos_os_campos_estao_na_superficie_primaria`
+    e quem garante que ele subiu inteiro, e nao que apenas desapareceu.
+
+    Os expanders que CONTINUAM existindo sao os tres de leitura — tabela da
+    curva, painel de formula e PDF —, e nenhum deles guarda campo de entrada
+    que altere o resultado.
+    """
     at = _app()
-    avancados = [e for e in at.expander if "Ajustes avançados" in e.label]
-    assert avancados, "o expander de avancados precisa existir"
-    # O estado vem no proto; AppTest nao expoe `.expanded` no elemento.
-    assert not avancados[0].proto.expanded
+    rotulos = [e.label for e in at.expander]
+    assert not [r for r in rotulos if "Ajustes avançados" in r], rotulos
 
 
 def test_render_tabela_gemea_da_curva_existe() -> None:

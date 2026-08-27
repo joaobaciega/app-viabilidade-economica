@@ -179,10 +179,19 @@ def gerar_pdf(e: Entradas, r: Resultado, cliente: str = "") -> bytes:
             forte=True,
         )
         doc.linha("por mês", f"{formato.moeda_agregada(r.incremental_mensal)}")
+        # Os dois numeros que D21 acrescentou aos cartoes da tela. Aqui eles
+        # continuam como linha de apoio, DEPOIS da margem: no documento a ordem
+        # de leitura da §5.5 nao foi alterada — a traducao abre a secao e a
+        # margem e a manchete. So a tela inverteu isso.
         if r.faturamento_refil:
             doc.linha(
-                "faturamento mensal (linha de apoio)",
+                "faturamento adicional, por mês",
                 formato.moeda_agregada(r.faturamento_refil),
+            )
+        if r.markup_operacao is not None:
+            doc.linha(
+                "mark up da operação (faturamento ÷ custo)",
+                formato.multiplo(r.markup_operacao),
             )
         if r.cashback_total:
             # Declara quem paga. NUNCA quanto isso custa a Suicatech.
@@ -254,11 +263,10 @@ def gerar_pdf(e: Entradas, r: Resultado, cliente: str = "") -> bytes:
 
     # --- preco e custo: so em documento interno ---------------------------
     if interno:
-        doc.secao("Preço e custo desta negociação")
+        doc.secao("Preço e custo de tabela")
         doc.paragrafo(
-            "Estes valores são negociados caso a caso e não constam de nenhuma "
-            "planilha publicada. Por conterem o custo de aquisição, este "
-            "documento é interno."
+            "Preço e custo vêm da tabela Suicatech vigente. Por conterem o "
+            "custo de aquisição, este documento é interno."
         )
         if e.preco_dianteiro is not None:
             doc.linha(

@@ -146,6 +146,46 @@ def _linhas(e: Entradas, r: Resultado) -> list[tuple[str, str, str]]:
             f" = {formato.moeda_unitaria(r.anual)}",
         )
     )
+    # --- Os dois numeros que D21 acrescentou ao resultado -------------------
+    #
+    # Eles entram DEPOIS da margem, na mesma ordem em que aparecem nos cartoes,
+    # e cada um declara que grandeza e: faturamento nao e margem, e mark up nao
+    # e nenhum dos dois (§4 — o rotulo nomeia a conta que foi feita).
+    if r.faturamento_refil is not None:
+        partes_faturamento = [
+            f"{formato.inteiro(r.pares_dianteiros)} pares × "
+            f"{formato.moeda_unitaria(e.preco_dianteiro)}"
+        ]
+        if r.traseiro_na_conta:
+            partes_faturamento.append(
+                f"{formato.inteiro(r.unidades_traseiras)} unidades × "
+                f"{formato.moeda_unitaria(e.preco_traseiro)}"
+            )
+        linhas.append(
+            (
+                "Faturamento adicional mensal",
+                "preço ao consumidor × volume de cada categoria. É receita "
+                "bruta, NÃO é margem — o custo ainda não foi descontado",
+                f"{' + '.join(partes_faturamento)}"
+                f" = {formato.moeda_unitaria(r.faturamento_refil)}",
+            )
+        )
+
+    if r.markup_operacao is not None:
+        linhas.append(
+            (
+                "Mark up da operação",
+                "faturamento total ÷ custo total, refil e palheta original "
+                "somados. É adimensional — não é margem e não é percentual: "
+                "é quantas vezes o preço cobre o custo",
+                f"({formato.moeda_agregada(r.faturamento_refil)} + "
+                f"{formato.moeda_agregada(r.faturamento_atual)}) ÷ "
+                f"({formato.moeda_agregada(r.cmv_refil)} + "
+                f"{formato.moeda_agregada(r.cmv_atual)})"
+                f" = {formato.multiplo(r.markup_operacao)}",
+            )
+        )
+
     linhas.append(
         (
             "Tradução por passagem",

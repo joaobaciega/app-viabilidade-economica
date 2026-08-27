@@ -1,30 +1,41 @@
-"""§5.5 — Bloco de resultado. E o que o cliente le.
+"""§5.5 reescrita por D21 — o resultado em TRES cartoes.
 
-"A ORDEM DE LEITURA E O REQUISITO MAIS IMPORTANTE DESTA TELA."
+    ┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
+    │ FATURAMENTO ADICIONAL │ │ MARGEM DE CONTRIB.    │ │ MARK UP DA OPERAÇÃO   │
+    │ R$ 249.372            │ │ R$ 141.480            │ │ 2,3×                  │
+    │ R$ 20.781 por mês     │ │ R$ 11.790 por mês     │ │ faturamento ÷ custo   │
+    └───────────────────────┘ └───────────────────────┘ └───────────────────────┘
 
-    ┌──────────────────────────────────────────────┐
-    │  3 a cada 10 carros que entram               │  <- t-traducao 48/800
-    │  na oficina                                  │     PRIMEIRO
-    │                                              │
-    │  R$ 141.480 por ano                          │  <- t-anual 36/700
-    │  margem de contribuicao incremental          │  <- t-mensal 22
-    │  R$ 11.790 por mes                           │  <- t-mensal 22
-    │  ────────────────────────────────────────    │
-    │  hoje R$ 3.780 -> com refil R$ 15.570        │
-    └──────────────────────────────────────────────┘
+A ORDEM E NORMATIVA e foi pedida pelo cliente em 27/08/2026, nesta sequencia:
+faturamento adicional, margem de contribuicao adicional, mark up da operacao.
 
-REGRAS (§5.5):
-  - A TRADUCAO VEM ANTES DO VALOR ANUAL. Em Streamlit isso e literalmente a
-    ordem das chamadas no script. "R$ 1,2 milhao por ano" e rejeitado pelo
-    cerebro antes de ser avaliado; "3 a cada 10 carros que entram na oficina" e
-    verificado pela intuicao em dois segundos
-  - a traducao e POR PASSAGEM, nunca por consultor/dia (erraria por 10x)
-  - a traducao e MAIOR que o anual: t-traducao >= 1,25 x t-anual
-  - NAO USE st.metric — nao chega aos 48px que a leitura a 1 m exige
-  - resultado negativo em tinta clara COM O SINAL. Nada em vermelho: numero
-    financeiro em vermelho le como prejuizo (§3.1.2, §13.1)
-  - o rotulo nomeia SO o que de fato foi descontado (§6.1.7), e so diz
-    "incremental" quando existe margem da original para descontar
+O QUE MUDOU EM RELACAO A VERSAO ANTERIOR, e vale saber por que:
+
+  - a TRADUCAO em escala humana ("3 a cada 10 carros que entram na oficina", em
+    48px) SAIU DA TELA. Ela era o primeiro elemento e o maior, por exigencia da
+    §5.5 e do P2 — o argumento era que "R$ 1,2 milhao por ano" e rejeitado pelo
+    cerebro antes de ser avaliado, enquanto "3 a cada 10 carros" e conferido
+    pela intuicao em dois segundos. Ela CONTINUA no PDF, no painel de formula e
+    na faixa do vendedor; so a tela deixou de abrir por ela (D21.2)
+  - o FATURAMENTO virou manchete. A §4 do DESIGN diz que faturamento entra "so
+    em linha secundaria, NUNCA como manchete — o resultado e lido em margem".
+    Divergencia declarada em D21.1, com a consequencia registrada: a curva do
+    grafico plota MARGEM, portanto ela e o gemeo do SEGUNDO cartao, nao do
+    primeiro, e o titulo do grafico diz qual grandeza esta plotada
+  - o estado vazio saiu daqui. O vazio da tela agora e a propria area de campos
+    com o botao desabilitado; este bloco so e desenhado quando ha resultado
+
+REGRAS QUE CONTINUAM VALENDO INTEGRALMENTE:
+
+  - NENHUM numero em vermelho, nem quando negativo (§3.1.2, §13.1): numero
+    financeiro em vermelho le como prejuizo, que e o oposto do que o pitch
+    afirma. O destaque do primeiro cartao e o cartao ESCURO (D6, 17,9:1), nao
+    preenchimento vermelho
+  - NAO USE st.metric — nao chega ao tamanho que a leitura a 1 m exige
+  - o rotulo nomeia SO a conta que foi feita (§4, §6.1.7). "Mark up" nao e
+    "margem" e nao e "lucro": o cartao diz `faturamento ÷ custo` embaixo do
+    numero para que a conta seja lida junto com ele
+  - o cashback ACRESCENTA uma linha e nunca altera nenhum dos tres numeros
 """
 
 from __future__ import annotations
@@ -33,98 +44,130 @@ import streamlit as st
 
 from src import formato
 from src import parametros as P
-from src.calculo import Resultado, rotulo_do_resultado
+from src.calculo import MESES_NO_ANO, Resultado, rotulo_do_resultado
 
 CHAVE_CONTAINER = "resultado"
 
 
 def bloco(r: Resultado) -> None:
-    # O container com key E o cartao (fundo escuro, regua vermelha, sombra),
-    # estilizado em css.py §9. Sem `border=True`: a borda nativa brigaria com o
-    # fundo escuro, e depender do wrapper interno deixou o fundo sem aplicar
-    # numa versao anterior — texto branco sobre branco.
-    with st.container(key=CHAVE_CONTAINER):
-        if r.anual is None:
-            _estado_vazio(r)
-            return
-        _resultado(r)
+    """Desenha o resultado. Nada e desenhado sem valor anual.
 
-
-def _estado_vazio(r: Resultado) -> None:
-    """§7.3: "O vazio desta tela NAO E UMA FALHA, e a abertura da conversa."
-
-    "Trate o texto de estado vazio como roteiro de pitch, nao como mensagem de
-    erro." Nenhum valor em R$ aparece aqui — nem R$ 0, nem travessao no lugar
-    de moeda (§6.1.9).
+    Quem chama ja garantiu o gate (`estado.resultado_visivel()`), portanto na
+    pratica `r.anual` existe sempre aqui. A guarda fica porque um resultado
+    parcial desenhado pela metade e pior do que nenhum.
     """
-    if r.estado == "E1_sem_operacao":
-        titulo = "Quantas passagens por mês esta oficina recebe?"
-        apoio = (
-            "É por aí que a conta começa. Depois: quantas palhetas são vendidas "
-            "hoje e a que preço — o preço da original pode ser conferido ao vivo "
-            "na aba <b>Preço original</b>."
+    if r.anual is None:
+        return
+
+    with st.container(key=CHAVE_CONTAINER):
+        _cartoes(r)
+        _nota_do_grupo(r)
+        _linhas_de_apoio(r)
+        _cashback(r)
+        _hoje_versus_refil(r)
+
+
+# ---------------------------------------------------------------------------
+# Os tres cartoes
+# ---------------------------------------------------------------------------
+
+
+def _cartao(rotulo: str, valor: str, apoio: str, principal: bool = False) -> str:
+    classe = "st-cartao st-cartao--principal" if principal else "st-cartao"
+    return (
+        f'<div class="{classe}">'
+        f'<span class="st-cartao-rotulo">{rotulo}</span>'
+        f'<span class="st-cartao-valor">{valor}</span>'
+        f'<span class="st-cartao-apoio">{apoio}</span>'
+        f"</div>"
+    )
+
+
+def _cartao_sem_numero(rotulo: str, motivo: str) -> str:
+    """Cartao que declara por que nao ha numero — nunca um numero inventado.
+
+    §6.1.9 proibe travessao no lugar de moeda e P9 proibe default zero. Um mark
+    up de 1,0 significaria "vende ao preco de custo", que e uma afirmacao que
+    ninguem fez.
+    """
+    return (
+        f'<div class="st-cartao">'
+        f'<span class="st-cartao-rotulo">{rotulo}</span>'
+        f'<span class="st-cartao-apoio">{motivo}</span>'
+        f"</div>"
+    )
+
+
+def _cartoes(r: Resultado) -> None:
+    """A ORDEM DESTA TUPLA E A ORDEM DA TELA. Nao reordene sem trocar D21.
+
+    `test_T1_ordem_dos_tres_cartoes_e_a_hierarquia` le esta funcao por AST e
+    reprova se os tres rotulos sairem de ordem — e por isso que o cartao do
+    mark up e montado por uma funcao propria, abaixo: manter o `if` aqui
+    colocaria a palavra "Mark up" antes de "Faturamento" na fonte.
+    """
+    faturamento_mensal = r.faturamento_refil or 0.0
+    faturamento_anual = faturamento_mensal * MESES_NO_ANO
+
+    colunas = st.columns(3, gap="small")
+    cartoes = (
+        _cartao(
+            "Faturamento adicional",
+            formato.moeda_agregada(faturamento_anual),
+            f"{formato.moeda_agregada(faturamento_mensal)} por mês",
+            principal=True,
+        ),
+        _cartao(
+            "Margem de contribuição adicional",
+            formato.moeda_agregada(r.anual),
+            f"{formato.moeda_agregada(r.incremental_mensal)} por mês",
+        ),
+        _cartao_markup(r),
+    )
+
+    for coluna, cartao in zip(colunas, cartoes):
+        with coluna:
+            st.markdown(cartao, unsafe_allow_html=True)
+
+
+def _cartao_markup(r: Resultado) -> str:
+    if r.markup_operacao is not None:
+        return _cartao(
+            "Mark up da operação",
+            formato.multiplo(r.markup_operacao),
+            "faturamento ÷ custo",
         )
-    else:
-        titulo = "Falta o preço e o custo do refil."
-        apoio = (
-            "São os valores desta negociação. Abrem em branco de propósito: "
-            "preço e custo são negociados caso a caso."
-        )
+    # Acontece quando o custo total da operacao e zero — nao ha por que
+    # dividir. Nao existe piso de preco (decisao F em aberto), portanto custo
+    # zero passa pelos campos.
+    return _cartao_sem_numero(
+        "Mark up da operação", "sem custo total para dividir"
+    )
 
-    if r.traducao_fracao > 0:
-        st.markdown(
-            f'<p class="st-traducao">'
-            f"{formato.traducao_por_passagem(r.traducao_fracao)}</p>",
-            unsafe_allow_html=True,
-        )
 
+def _nota_do_grupo(r: Resultado) -> None:
+    """Qual periodo e qual conta — os dois em uma linha, embaixo dos cartoes.
+
+    "Valores anuais" nao e enfeite: os numeros grandes sao de 12 meses e o
+    apoio de cada cartao e mensal. Sem a nota, os dois se confundem.
+    """
     st.markdown(
-        f'<p class="st-falta-ancora">{titulo}<span>{apoio}</span></p>',
+        f'<p class="st-legenda-bloco">Valores anuais · '
+        f"{rotulo_do_resultado(r)} · {P.rotulo_do_anual()}</p>",
         unsafe_allow_html=True,
     )
 
 
-def _resultado(r: Resultado) -> None:
-    # ------------------------------------------------------------------
-    # (1) A TRADUCAO — PRIMEIRO, e o maior elemento da tela.
-    #     Nao mova esta chamada para baixo do anual: a ordem das chamadas
-    #     no script E a ordem de leitura (§5.5, P2, checklist §12).
-    # ------------------------------------------------------------------
-    st.markdown(
-        f'<p class="st-traducao">'
-        f"{formato.traducao_por_passagem(r.traducao_fracao)}</p>",
-        unsafe_allow_html=True,
-    )
-
-    # ------------------------------------------------------------------
-    # (2) O valor anual, com o rotulo que descreve a conta que foi feita
-    # ------------------------------------------------------------------
-    st.markdown(
-        f'<p class="st-anual">{formato.moeda_agregada(r.anual)} por ano</p>'
-        f'<p class="st-rotulo-resultado">{rotulo_do_resultado(r)}'
-        f" · {P.rotulo_do_anual()}</p>",
-        unsafe_allow_html=True,
-    )
-
-    # ------------------------------------------------------------------
-    # (3) O valor mensal
-    # ------------------------------------------------------------------
-    st.markdown(
-        f'<p class="st-mensal">{formato.moeda_agregada(r.incremental_mensal)} '
-        f"por mês</p>",
-        unsafe_allow_html=True,
-    )
-
-    _linhas_de_apoio(r)
-    _hoje_versus_refil(r)
+# ---------------------------------------------------------------------------
+# Linhas de apoio
+# ---------------------------------------------------------------------------
 
 
 def _linhas_de_apoio(r: Resultado) -> None:
-    """Volume e faturamento — linha de apoio, NUNCA manchete.
+    """O volume que produz os numeros acima.
 
-    §4: faturamento so em linha secundaria. NUNCA como manchete — o resultado e
-    lido em margem (plano §3.3). Elevar o faturamento trocaria a metrica nativa
-    do gerente de pos-venda (aproveitamento) por uma que nao e dele.
+    O faturamento SAIU desta linha: ele virou o primeiro cartao (D21.1), e
+    repeti-lo aqui seria o mesmo numero duas vezes na mesma tela.
     """
     partes: list[str] = []
     if r.pares_dianteiros:
@@ -135,17 +178,11 @@ def _linhas_de_apoio(r: Resultado) -> None:
         partes.append(
             f"{formato.inteiro(r.unidades_traseiras)} unidades traseiras/mês"
         )
-    if r.faturamento_refil:
-        partes.append(
-            f"{formato.moeda_agregada(r.faturamento_refil)} de faturamento/mês"
-        )
     if partes:
         st.markdown(
             f'<p class="st-linha-apoio">{" · ".join(partes)}</p>',
             unsafe_allow_html=True,
         )
-
-    _cashback(r)
 
 
 def _cashback(r: Resultado) -> None:

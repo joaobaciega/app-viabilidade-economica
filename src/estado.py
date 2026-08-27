@@ -56,6 +56,11 @@ K_CONSULTORES = "consultores_por_ponto"
 K_DIAS_UTEIS = "dias_uteis"
 K_NOME_CLIENTE = "nome_cliente"
 
+# O interruptor do resultado (D21). NAO e chave de widget: e escrito por
+# `on_click` do botao "Mostrar Resultado", cuja key propria e outra. Enquanto
+# for False a tela mostra apenas os campos — nenhum numero, nenhum grafico.
+K_MOSTRAR = "mostrar_resultado"
+
 # Cashback: R$ por venda, por destinatario, com linha propria para cada
 # categoria. `cashback_d_0` = Consultor no dianteiro, `_1` = Gerente, `_2` =
 # Marketing; `cashback_t_*` idem no traseiro. Os indices seguem a ordem de
@@ -90,7 +95,39 @@ _DEFAULTS: dict[str, object] = {
     K_CONV_D: 0,  # nenhum preset ativo na primeira carga (§6.1.4)
     K_CONV_T: 0,
     K_DIAS_UTEIS: P.DIAS_UTEIS_PADRAO,
+    K_MOSTRAR: False,  # D21 — a tela abre so com os campos
 }
+
+
+# ---------------------------------------------------------------------------
+# CAMPOS OBRIGATORIOS (D21) — o que o botao "Mostrar Resultado" exige.
+#
+# FONTE UNICA: o botao, o gate do resultado e a lista do que falta leem daqui.
+# Duplicar essa regra em dois lugares e como o botao acabaria habilitado sobre
+# um calculo que nao existe.
+#
+# O que esta na lista e o que a conta EXIGE, e nada mais:
+#   passagens          -> sem ela nao ha volume (estado E1)
+#   palhetas, preco    -> a ancora: o que ele vende hoje e a quanto
+#   custo da original  -> entrou em D21 porque o mark up da operacao inteira
+#                         precisa do custo de hoje. Antes era opcional
+#   preco/custo dianteiro -> sem eles nao ha produto (estado E1b)
+#
+# O QUE NAO ESTA, DE PROPOSITO: preco e custo do TRASEIRO. Vazio ali significa
+# "fora da conta" e e um estado legitimo declarado na faixa de premissas
+# (§5.13) — exigi-los travaria o vendedor quando o traseiro ainda nao foi
+# fechado. Consultores, dias uteis e cashback tambem ficam fora: nenhum entra
+# em conta de margem.
+# ---------------------------------------------------------------------------
+
+OBRIGATORIOS: tuple[str, ...] = (
+    K_PASSAGENS,
+    K_ORIGINAIS,
+    K_PRECO_ORIG,
+    K_CUSTO_ORIG,
+    K_PRECO_D,
+    K_CUSTO_D,
+)
 
 
 def iniciar() -> None:
@@ -144,11 +181,15 @@ _LIMPEZA: dict[str, object] = {
     K_PASSAGENS: None,
     K_CONSULTORES: None,
     K_NOME_CLIENTE: "",
-    # O cashback e negociado por cliente: some junto (plano §1.4, "rateio
-    # variavel por negociacao e por cargo").
+    # O cashback e por cliente: some junto (plano §1.4, "rateio
+    # variavel por cargo").
     **{chave: None for chave in CHAVES_CASHBACK_D},
     **{chave: None for chave in CHAVES_CASHBACK_T},
 }
+# NAO acrescente K_MOSTRAR aqui: `_LIMPEZA` e a tabela dos campos SENSIVEIS, e
+# o teste do checklist exige que ela case exatamente com CAMPOS_DE_SESSAO. O
+# interruptor do resultado e estado de interface — `novo_cliente()` o desliga
+# explicitamente.
 
 
 def aplicar_traseiro(fracao: float) -> None:
@@ -176,6 +217,9 @@ def novo_cliente() -> None:
     """
     for chave, vazio in _LIMPEZA.items():
         st.session_state[chave] = vazio
+    # E o resultado sai da tela: o proximo cliente comeca na area de campos, sem
+    # ver o cenario do anterior (D21).
+    st.session_state[K_MOSTRAR] = False
     iniciar()
 
 
@@ -213,22 +257,46 @@ def ler_entradas() -> Entradas:
     )
 
 
-def contar_avancados_alterados() -> int:
-    """Quantos campos de Ajustes avancados estao fora do padrao.
+# ---------------------------------------------------------------------------
+# O GATE DO RESULTADO (D21)
+# ---------------------------------------------------------------------------
 
-    Usado no rotulo do expander. Nada dentro dos avancados pode alterar o
-    resultado sem que a faixa de premissas reflita (§5.10) — este contador e
-    um reforco, nao o mecanismo.
+
+def faltando() -> tuple[str, ...]:
+    """As chaves obrigatorias ainda vazias, na ordem de OBRIGATORIOS."""
+    return tuple(chave for chave in OBRIGATORIOS if _num(chave) is None)
+
+
+def esta_completo() -> bool:
+    """Todos os obrigatorios preenchidos — o botao pode habilitar."""
+    return not faltando()
+
+
+def mostrar_resultado() -> None:
+    """Liga o resultado. `on_click` do botao, nunca chamada solta.
+
+    E `on_click` pela mesma razao dos presets (§5.3): o callback roda ANTES da
+    instanciacao dos widgets no rerun, e e o unico momento seguro para escrever
+    no session_state.
     """
-    n = 0
-    if _num(K_CONSULTORES) is not None:
-        n += 1
-    if int(st.session_state.get(K_DIAS_UTEIS) or P.DIAS_UTEIS_PADRAO) != P.DIAS_UTEIS_PADRAO:
-        n += 1
-    # O cashback conta como UM item, nao como seis campos: e um programa, e o
-    # contador serve para o vendedor saber que ha algo fora do padrao (§5.10).
-    if any(
-        _num(chave) for chave in (*CHAVES_CASHBACK_D, *CHAVES_CASHBACK_T)
-    ):
-        n += 1
-    return n
+    st.session_state[K_MOSTRAR] = True
+
+
+def esconder_resultado() -> None:
+    """Volta para a tela de campos, SEM apagar nada do que foi digitado.
+
+    E o caminho de volta do pitch: recomecar a apresentacao com o mesmo cenario
+    montado. Nao confundir com `novo_cliente()`, que apaga preco, custo e
+    ancora — este aqui nao apaga campo nenhum.
+    """
+    st.session_state[K_MOSTRAR] = False
+
+
+def resultado_visivel() -> bool:
+    """Se o resultado deve ser desenhado agora.
+
+    Duas condicoes, e a segunda e a que evita o defeito: apagar um campo
+    obrigatorio DEPOIS de revelar o resultado esconde o resultado de novo, em
+    vez de deixar na tela um numero que a entrada atual nao produz mais.
+    """
+    return bool(st.session_state.get(K_MOSTRAR)) and esta_completo()

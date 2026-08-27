@@ -34,8 +34,15 @@ lugar do valor, NUNCA um preco estimado.
 
 NOTA SOBRE AS CLASSES DE CSS USADAS AQUI: esta tela vive sobre fundo BRANCO, e
 por isso usa `.st-kpi-valor`, `.st-kpi-rotulo`, `.st-legenda-bloco`, `.st-chip`,
-`.st-derivado` e `.st-premissas`. A excecao e `_bloco_menos_codigo`, que usa
-`.st-mensal` — herdado da versao anterior desta tela e mantido como estava.
+`.st-derivado` e `.st-premissas`.
+
+DEFEITO CORRIGIDO EM 27/08/2026: `_bloco_menos_codigo` usava `.st-mensal`,
+"herdado da versao anterior desta tela e mantido como estava". `.st-mensal` e
+`color: var(--tinta-clara)` — branco. Dentro de um `st.container(border=True)`,
+que e superficie branca, o texto ficava BRANCO SOBRE BRANCO: o bloco renderizava
+so a legenda, e a frase "Palheta original: dezenas de codigos" era invisivel.
+Trocado por `.st-kpi-valor`, que e a classe que esta propria docstring manda
+usar. E o mesmo defeito que a §9 de css.py registra no cartao de resultado.
 """
 
 from __future__ import annotations
@@ -144,7 +151,7 @@ def _bloco_menos_codigo() -> None:
         if P.CODIGOS_COBERTURA_97 is None:
             # ⚠️ G — o numero NAO e chutado. O marcador fica no lugar dele.
             st.markdown(
-                "<p class='st-mensal'>Palheta original: dezenas de códigos.<br>"
+                "<p class='st-kpi-valor'>Palheta original: dezenas de códigos.<br>"
                 "Refil Suicatech: "
                 + aberto.chip("nº de códigos em aberto — decisão G")
                 + " cobrem 97% do mercado.</p>",
@@ -152,7 +159,7 @@ def _bloco_menos_codigo() -> None:
             )
         else:  # pragma: no cover — enquanto G estiver aberta
             st.markdown(
-                f"<p class='st-mensal'>Refil Suicatech: "
+                f"<p class='st-kpi-valor'>Refil Suicatech: "
                 f"{P.CODIGOS_COBERTURA_97} códigos cobrem 97% do mercado.</p>",
                 unsafe_allow_html=True,
             )

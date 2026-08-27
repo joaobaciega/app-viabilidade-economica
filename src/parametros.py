@@ -24,10 +24,16 @@ from typing import Literal
 # ---------------------------------------------------------------------------
 # Procedencia (DESIGN §5.7) — a natureza de cada numero na tela.
 #
-# A distincao carteira_medida x derivado no traseiro e OBRIGATORIA e nao e
-# preciosismo: ela ataca o risco n. 1 do plano. Se o 7% e o 13% do traseiro
-# forem apresentados com a mesma autoridade do 30% do dianteiro, o app esta
-# vendendo derivacao como medicao, e o erro so aparece no mes 3 do cliente.
+# A distincao carteira_medida x derivado existe para atacar o risco n. 1 do
+# plano: apresentar numero derivado com a mesma autoridade de numero medido faz
+# o app vender derivacao como medicao, e o erro so aparece no mes 3 do cliente.
+#
+# ESTADO ATUAL (D21, 27/08/2026): o cliente afirmou que os seis valores dos
+# presets — dianteiro 10/40/70 e traseiro 5/10/18 — sao dado MEDIDO na carteira.
+# Por isso os seis declaram `carteira_medida` e nenhum usa `derivado` hoje.
+# O valor `derivado` continua existindo no tipo e o mecanismo continua montado
+# (marcador_procedencia, faixa de premissas): no dia em que um preset voltar a
+# ser derivado, basta trocar o campo e a tela volta a marcar `≈ derivado`.
 # ---------------------------------------------------------------------------
 
 Origem = Literal["carteira_medida", "derivado"]
@@ -67,40 +73,44 @@ class Categoria:
 
 
 # ---------------------------------------------------------------------------
-# Presets de aproveitamento (plano §3.2, §8 decisao 2 e C)
+# Presets de aproveitamento (plano §3.2, §8 decisao 2 e C; valores por D21)
 #
-# Dianteiro: carteira real de 15+ concessionarias. NAO e estimativa — e dado
-# proprio, e a palavra "estimativa" e PROIBIDA junto deles (DESIGN §4).
+# Carteira real de 15+ concessionarias, nas DUAS categorias. NAO e estimativa —
+# e dado proprio, e a palavra "estimativa" e PROIBIDA junto deles (DESIGN §4).
 #
-# Traseiro: so a linha realista (10%) foi medida. Os extremos sao derivados
-# do dianteiro pela mesma proporcao (0,67x e 1,33x) e obrigatoriamente
-# marcados `≈ derivado`, nunca `◆ carteira` (DESIGN §5.7, §10-H).
+# VALORES ATUALIZADOS EM 27/08/2026 (D21, decisao do cliente): o dianteiro
+# passou de 20/30/40 para 10/40/70 e o traseiro de 7/10/13 para 5/10/18, com a
+# afirmacao de que os seis sao medidos. Antes, so a linha realista do traseiro
+# (10%) era medida e os extremos eram derivados do dianteiro pela mesma
+# proporcao — essa derivacao DEIXOU DE EXISTIR, e com ela a marca `≈ derivado`.
+#
+# O otimista de 70% e o que obriga SLIDER_DOMINIO a chegar a 80 (V5 abaixo).
 # ---------------------------------------------------------------------------
 
 PRESETS: tuple[Preset, ...] = (
     Preset(
         nome="pessimista",
         rotulo="PESSIMISTA",
-        dianteiro=0.20,
-        traseiro=0.07,
+        dianteiro=0.10,
+        traseiro=0.05,
         origem_dianteiro="carteira_medida",
-        origem_traseiro="derivado",  # ⚠️ H — derivado, nao medido
+        origem_traseiro="carteira_medida",
     ),
     Preset(
         nome="realista",
         rotulo="REALISTA",
-        dianteiro=0.30,
+        dianteiro=0.40,
         traseiro=0.10,
         origem_dianteiro="carteira_medida",
-        origem_traseiro="carteira_medida",  # a unica linha medida nos dois
+        origem_traseiro="carteira_medida",
     ),
     Preset(
         nome="otimista",
         rotulo="OTIMISTA",
-        dianteiro=0.40,
-        traseiro=0.13,
+        dianteiro=0.70,
+        traseiro=0.18,
         origem_dianteiro="carteira_medida",
-        origem_traseiro="derivado",  # ⚠️ H — derivado, nao medido
+        origem_traseiro="carteira_medida",
     ),
 )
 
@@ -111,8 +121,8 @@ LEGENDA_PRESETS_DIANTEIRO = (
     "da carteira Suicatech — não é estimativa"
 )
 LEGENDA_PRESETS_TRASEIRO = (
-    "10% medido na carteira · extremos derivados do dianteiro "
-    "na mesma proporção — não medidos"
+    "Aproveitamento traseiro medido na carteira Suicatech, "
+    "nas três faixas — não é estimativa"
 )
 
 # ---------------------------------------------------------------------------
@@ -156,7 +166,11 @@ CARGA_MAXIMA_VEICULOS_DIA: float = 20.0
 # Dominio do slider E do eixo X do grafico — O MESMO VALOR NOS DOIS.
 # DESIGN §5.4: "mudar um obriga a mudar o outro, senao o marcador sai do
 # grafico". V5 verifica que ele cobre todos os presets.
-SLIDER_DOMINIO: tuple[int, int] = (0, 60)
+#
+# Subiu de (0, 60) para (0, 80) em 27/08/2026 (D21): com o otimista em 70% o
+# teto antigo reprovava a V5 e o app NAO SUBIA. 80 deixa folga acima do otimista
+# e mantem os rotulos do eixo de 10 em 10 redondos.
+SLIDER_DOMINIO: tuple[int, int] = (0, 80)
 
 # Pontos de venda: o unico campo primario com default (DESIGN §6.1.4).
 PONTOS_DE_VENDA_PADRAO: int = 1

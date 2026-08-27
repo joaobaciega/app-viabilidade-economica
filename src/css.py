@@ -31,6 +31,7 @@ DIVERGENCIAS DECLARADAS (docs/DIVERGENCIAS.md):
   D5 vermelho ampliado     §3.1 restringe a 2 lugares; o cliente pediu mais
   D6 cartao de resultado escuro   §3.1 pede superficie branca dominante
   D7 sombra sutil em cartao       §3.5 pede "elevacao por traco, nenhuma sombra"
+  D20 tabela propria, cabecalho grudado, ritmo de secao e tiles de altura igual
 """
 
 from __future__ import annotations
@@ -51,14 +52,29 @@ T_PRESET_VALOR = 32
 T_MENSAL = 22
 T_PRESET_NOME = 22
 
-# Escala OPERADOR — legivel a 40 cm, pelo vendedor
-T_ROTULO = 17
-T_CAMPO = 20
+# Escala OPERADOR — legivel a 40 cm, pelo vendedor.
+#
+# COMPACTADA EM D22 (27/08/2026): o rotulo caiu de 17 para 15px e o texto do
+# campo de 20 para 17px, a pedido do cliente ("os campos estao muito grandes, a
+# parte de preenchimento ocupa espaco demais"). A escala continua DUPLA e
+# continua inteiramente abaixo da escala do cliente (22px), que e o que
+# `test_escala_dupla_existe` protege.
+T_ROTULO = 15
+T_CAMPO = 17
 T_DERIVADO = 15
 T_PREMISSAS = 15
 T_VENDEDOR = 12
 
 PISO_TEXTO_CLIENTE = 22
+
+# Altura de campo (§3.4, divergido em D22).
+#
+# O DESIGN fixa "minimo global: 56px — acima dos 44px habituais,
+# deliberadamente". D22 desce para os 44px HABITUAIS, e nao um pixel abaixo:
+# 44x44 e o piso de alvo de toque do WCAG 2.5.5 e das diretrizes de iOS e
+# Android. Num celular, campo menor que isso e campo que o dedo erra — e o
+# cliente pediu compactacao E portabilidade para celular na mesma frase.
+ALTURA_CAMPO = 44
 
 # --- Cor -------------------------------------------------------------------
 # Superficies mornas em vez de branco/cinza puros: e o que tira o ar de
@@ -168,6 +184,8 @@ def _folha() -> str:
   --raio-cartao: {RAIO_CARTAO}px;
   --raio-campo:  {RAIO_CAMPO}px;
 
+  --altura-campo: {ALTURA_CAMPO}px;
+
   /* D7 — sombra MUITO sutil. Nao e vocabulario de material publicitario:
      e 1px de profundidade para o cartao nao parecer recortado com tesoura.
      Sob luz forte ela desaparece e o traco de 1px sustenta sozinho. */
@@ -217,8 +235,16 @@ header[data-testid="stHeader"] {{
 /* ===================================================================
    3. Cabecalho — faixa vermelha de largura total. D5.
    E aqui que o vermelho ganha presenca: uma area, nao um detalhe.
+
+   GRUDADO NO TOPO (D20). A Tela 1 rola: resultado, faixa de premissas,
+   tiles, grafico, tabela, formula, PDF. Com o cabecalho rolando junto, a
+   navegacao entre as tres telas ficava fora de alcance justamente quando o
+   vendedor precisa dela — no meio da conversa, para conferir o preco da
+   original. `position: sticky` resolve sem componente e sem JS.
+   Ele NAO ganha altura por isso: 71px do mesmo cabecalho que ja existia.
    =================================================================== */
 .st-key-cabecalho {{
+  position: sticky; top: 0; z-index: 80;
   margin: 0 -28px 20px !important;
   padding: 14px 28px 13px !important;
   background: linear-gradient(180deg, var(--marca) 0%, var(--marca-escuro) 100%);
@@ -285,7 +311,13 @@ header[data-testid="stHeader"] {{
   font-size: var(--t-derivado) !important; font-weight: 700 !important;
   letter-spacing: .09em; text-transform: uppercase;
   color: var(--marca-escuro) !important;
-  margin: 22px 0 12px !important; padding: 0 0 8px;
+  /* PROXIMIDADE (D20): o titulo pertence ao cartao que vem DEPOIS dele, e nao
+     ao que vem antes. Antes eram 22px acima e 12px abaixo — quase simetrico,
+     e um titulo simetrico flutua entre dois cartoes em vez de encabecar um.
+     Mais ar acima, menos abaixo: a area de campos le como cinco grupos com
+     titulo, nao como dez faixas alternadas.
+     D22 apertou os dois valores (era 28/9) mantendo a proporcao. */
+  margin: 17px 0 6px !important; padding: 0 0 6px;
   border-bottom: 2px solid var(--marca-borda);
 }}
 .st-secao .st-icone {{ color: var(--marca); }}
@@ -299,11 +331,6 @@ header[data-testid="stHeader"] {{
    =================================================================== */
 [data-testid="stVerticalBlockBorderWrapper"] > div {{
   border-radius: var(--raio-cartao) !important;
-}}
-.st-key-kpis [data-testid="stVerticalBlockBorderWrapper"] {{
-  background: var(--superficie);
-  border-radius: var(--raio-cartao);
-  box-shadow: var(--sombra-cartao);
 }}
 div[data-testid="stExpander"] details {{
   border-radius: var(--raio-cartao) !important;
@@ -324,14 +351,16 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 .st-key-entrada_operacao,
 .st-key-entrada_hoje,
 .st-key-entrada_dianteiro,
-.st-key-entrada_traseiro {{
+.st-key-entrada_traseiro,
+.st-key-entrada_cashback {{
   background: var(--superficie);
   border: 1px solid var(--traco);
   border-left: 4px solid var(--marca);
   border-radius: var(--raio-campo);
   box-shadow: var(--sombra-cartao);
-  padding: 12px 16px 14px !important;
-  margin-bottom: 14px;
+  /* D22: era 12px 16px 14px, com 14px de margem embaixo. */
+  padding: 9px 14px 10px !important;
+  margin-bottom: 9px;
 }}
 /* Atalhos de aproveitamento traseiro — pequenos de proposito. Sao controle de
    OPERACAO, nao o protagonista: os 96px sao dos presets do dianteiro (§5.3). */
@@ -363,11 +392,14 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 }}
 
 /* ===================================================================
-   6. Campos 🔧  (§3.4 — minimo 56px, acima dos 44 habituais)
+   6. Campos 🔧  (§3.4, divergido em D22 — 44px, o piso de alvo de toque)
+   O DESIGN pedia 56px "acima dos 44 habituais, deliberadamente". D22 desce
+   para 44, e nao abaixo: e o minimo do WCAG 2.5.5 e das diretrizes de iOS e
+   Android, e o app precisa funcionar no celular.
    =================================================================== */
 [data-testid="stNumberInput"] input,
 [data-testid="stTextInput"] input {{
-  height: 56px !important;
+  height: var(--altura-campo) !important;
   font-size: var(--t-campo) !important; font-weight: 600 !important;
   color: var(--tinta-primaria) !important;
   border-radius: var(--raio-campo) !important;
@@ -382,13 +414,13 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   border-color: var(--marca) !important;
   box-shadow: 0 0 0 3px var(--marca-lavado) !important;
 }}
-/* O selectbox usava o visual NATIVO do Streamlit, do lado de campos de 56px —
+/* O selectbox usava o visual NATIVO do Streamlit, do lado dos campos proprios —
    inconsistencia visivel nas Telas 2 e 3. Aqui ele entra na mesma regra da
    §3.4. O seletor de baseweb e interno, e portanto fragil: se ele mudar de
    nome numa atualizacao, o campo volta ao visual nativo, que continua
    funcional. Degradacao aceitavel, como no resto da camada B. */
 [data-testid="stSelectbox"] div[data-baseweb="select"] > div {{
-  min-height: 56px !important;
+  min-height: var(--altura-campo) !important;
   border-radius: var(--raio-campo) !important;
   background: var(--superficie-2) !important;
   border: 1px solid var(--traco) !important;
@@ -410,6 +442,36 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 }}
 /* Sem spinner: alvo pequeno e irrelevante num tablet (§5.1) */
 [data-testid="stNumberInput"] button {{ display: none !important; }}
+
+/* ===================================================================
+   6.1 RITMO VERTICAL DA AREA DE CAMPOS — D22.
+   De onde vinha a altura, e quanto cada peca custava POR CAMPO:
+
+       rotulo 17px + margem do widget      ~30px  ->  ~21px
+       campo                                56px  ->   44px
+       gap do stVerticalBlock              ~10px  ->   ~5px
+       chip derivado / legenda, quando ha  ~34px  ->  ~22px
+
+   Sao ~92px por campo contra ~70px. Somando o padding dos cinco cartoes e a
+   margem dos cinco titulos de secao, a estimativa e de 300 a 350px menos na
+   area de preenchimento — perto de um quarto dela. ESTIMATIVA, e nao medicao:
+   a altura real depende de quantos rotulos quebram em duas linhas na largura
+   de cada coluna, e isso so o navegador responde (item 3 do checklist manual).
+   =================================================================== */
+[data-testid="stWidgetLabel"] {{ margin-bottom: 2px !important; }}
+[data-testid="stNumberInput"] label p,
+[data-testid="stTextInput"] label p {{ line-height: 1.25 !important; }}
+
+/* Dentro dos cartoes de campo o empilhamento e mais apertado que no resto da
+   pagina. Fora deles o gap global de 0.6rem continua valendo — o resultado e o
+   grafico precisam de respiro, os campos nao. */
+.st-key-entrada_operacao [data-testid="stVerticalBlock"],
+.st-key-entrada_hoje [data-testid="stVerticalBlock"],
+.st-key-entrada_dianteiro [data-testid="stVerticalBlock"],
+.st-key-entrada_traseiro [data-testid="stVerticalBlock"],
+.st-key-entrada_cashback [data-testid="stVerticalBlock"] {{
+  gap: 0.3rem !important;
+}}
 
 /* O seletor de marca da Tela 3 — o menu suspenso EM EVIDENCIA. Gancho
    `st-key-seletor_marca`, de st.container(key=...).
@@ -433,10 +495,11 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   font-size: var(--t-derivado) !important;
   color: var(--tinta-secundaria) !important; line-height: 1.4 !important;
 }}
-/* Total derivado (§5.1) — chip vermelho lavado, para ele ser PROCURADO. */
+/* Total derivado (§5.1) — chip vermelho lavado, para ele ser PROCURADO.
+   D22: era `margin: 6px 0 14px; padding: 4px 11px`. */
 .st-derivado {{
-  display: inline-block; margin: 6px 0 14px;
-  padding: 4px 11px; border-radius: 999px;
+  display: inline-block; margin: 3px 0 4px;
+  padding: 2px 9px; border-radius: 999px;
   background: var(--marca-lavado); border: 1px solid var(--marca-borda);
   font-size: var(--t-derivado) !important; font-weight: 600 !important;
   color: var(--marca-escuro) !important;
@@ -503,49 +566,115 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   font-size: var(--t-derivado) !important; font-weight: 600 !important;
   letter-spacing: .07em; text-transform: uppercase;
   color: var(--tinta-discreta) !important;
-  margin: 18px 0 20px !important;
+  margin: 10px 0 14px !important;  /* D22: era 18px/20px */
 }}
 .st-ajuste-fino::after {{
   content: ""; flex: 1; height: 1px; background: var(--traco);
 }}
 
 /* ===================================================================
-   9. BLOCO DE RESULTADO — cartao escuro. D6.
-   A ordem e normativa: traducao -> anual -> mensal.
-   REGRA: t-traducao >= 1,25 x t-anual (48/36 = 1,33). Inverter e o erro de
-   implementacao mais provavel desta tela.
-   NENHUM numero daqui usa vermelho (§3.1, §13.1): numero financeiro em
-   vermelho le como prejuizo, que e o oposto do que o pitch afirma.
+   8.1 BOTAO DE ACAO — o gate da exibicao. D21.
+   Gancho `st-key-acao`, de st.container(key="acao").
    =================================================================== */
-/* O cartao E o proprio container com key — nao um wrapper interno. Depender de
-   `[data-testid="stVerticalBlockBorderWrapper"]` aqui deixou o fundo escuro sem
-   aplicar e o texto branco sobre branco: invisivel. */
-.st-key-resultado {{
+.st-key-acao {{ margin: 18px 0 10px !important; }}
+.st-key-acao [data-testid="stButton"] button {{
+  min-height: 64px !important; height: 64px !important;
+  border-radius: var(--raio-cartao) !important;
+  box-shadow: var(--sombra-cartao) !important;
+}}
+.st-key-acao [data-testid="stButton"] button p {{
+  font-size: var(--t-preset-nome) !important; font-weight: 800 !important;
+  letter-spacing: .06em;
+}}
+.st-key-acao [data-testid="stButton"] button[kind="primary"] {{
+  background: var(--marca) !important;
+  border-color: var(--marca-escuro) !important;
+}}
+/* DESABILITADO sem cor semantica (§3.1.2 proibe vermelho de alerta, e o
+   projeto nao tem token de erro nenhum): o botao apenas perde o preenchimento
+   e ganha traco tracejado. A informacao de que falta algo esta no TEXTO abaixo
+   dele, nao na cor — o que tambem sobrevive a daltonismo (§9.4). */
+.st-key-acao [data-testid="stButton"] button:disabled {{
+  background: var(--superficie-2) !important;
+  border: 1.5px dashed var(--traco) !important;
+  box-shadow: none !important;
+}}
+.st-key-acao [data-testid="stButton"] button:disabled p {{
+  color: var(--tinta-discreta) !important;
+}}
+.st-acao-falta {{
+  font-size: var(--t-derivado) !important; font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: var(--tinta-discreta) !important;
+  margin: 8px 0 0 !important; text-align: center;
+}}
+
+/* ===================================================================
+   9. RESULTADO — TRES CARTOES. D21, e D6 no primeiro deles.
+   A ordem e normativa: faturamento adicional -> margem de contribuicao
+   adicional -> mark up da operacao.
+   HIERARQUIA: o primeiro cartao e o escuro E o maior (--t-traducao, 48px);
+   os outros dois sao claros e menores (--t-anual, 36px). A razao 48/36 = 1,33
+   e a mesma que a §5.5 exigia entre a traducao e o anual.
+   NENHUM numero daqui usa vermelho (§3.1, §13.1): numero financeiro em
+   vermelho le como prejuizo, que e o oposto do que o pitch afirma. O destaque
+   do primeiro cartao e a superficie ESCURA (17,9:1), nunca preenchimento
+   vermelho.
+   =================================================================== */
+.st-key-resultado {{ margin: 6px 0 4px !important; }}
+.st-key-resultado [data-testid="stHorizontalBlock"] {{ gap: 12px !important; }}
+
+.st-cartao {{
   position: relative;
-  background: var(--superficie-escura) !important;
+  display: flex; flex-direction: column;
+  background: var(--superficie);
+  border: 1px solid var(--traco);
   border-radius: var(--raio-cartao);
-  box-shadow: var(--sombra-hero);
-  padding: 30px 28px 24px !important;
-  margin-top: 6px;
+  box-shadow: var(--sombra-cartao);
+  padding: 22px 22px 20px;
+  height: 100%; min-height: 220px;
   overflow: hidden;
 }}
-/* Regua vermelha de 4px no topo do cartao — um dos usos autorizados (§3.1.2) */
-.st-key-resultado::before {{
+/* O cartao PRINCIPAL — superficie escura (D6) e regua vermelha no topo, que e
+   um dos usos de vermelho autorizados pela §3.1.2. */
+.st-cartao--principal {{
+  background: var(--superficie-escura);
+  border-color: var(--superficie-escura);
+  box-shadow: var(--sombra-hero);
+}}
+.st-cartao--principal::before {{
   content: ""; position: absolute; inset: 0 0 auto 0; height: 4px;
-  background: linear-gradient(90deg, var(--marca) 0%, var(--marca-escuro) 100%);
+  background: var(--marca);
 }}
-.st-key-resultado [data-testid="stVerticalBlockBorderWrapper"],
-.st-key-resultado [data-testid="stVerticalBlockBorderWrapper"] > div {{
-  background: transparent !important; border: none !important;
-  padding: 0 !important;
+.st-cartao-rotulo {{
+  display: block;
+  font-size: var(--t-mensal) !important; font-weight: 700 !important;
+  line-height: 1.25 !important;
+  color: var(--tinta-secundaria) !important;
+  margin: 0 0 10px !important;
 }}
-.st-traducao {{
-  font-size: var(--t-traducao) !important; font-weight: 800 !important;
-  line-height: 1.08 !important; letter-spacing: -.015em;
-  color: var(--tinta-clara) !important;
+.st-cartao-valor {{
+  display: block;
+  font-size: var(--t-anual) !important; font-weight: 800 !important;
+  line-height: 1.1 !important; letter-spacing: -.015em;
+  color: var(--tinta-primaria) !important;
   font-variant-numeric: proportional-nums;
-  margin: 0 0 22px !important;
+  margin: 0 !important;
 }}
+.st-cartao-apoio {{
+  display: block;
+  font-size: var(--t-mensal) !important; font-weight: 500 !important;
+  line-height: 1.3 !important;
+  color: var(--tinta-discreta) !important;
+  margin: auto 0 0 !important; padding-top: 10px;
+}}
+.st-cartao--principal .st-cartao-rotulo {{ color: var(--tinta-clara-2) !important; }}
+.st-cartao--principal .st-cartao-valor {{
+  font-size: var(--t-traducao) !important;
+  color: var(--tinta-clara) !important;
+}}
+.st-cartao--principal .st-cartao-apoio {{ color: var(--tinta-clara-2) !important; }}
+
 .st-anual {{
   font-size: var(--t-anual) !important; font-weight: 700 !important;
   line-height: 1.15 !important;
@@ -566,34 +695,41 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   font-variant-numeric: proportional-nums;
   margin: 0 !important;
 }}
+/* AS LINHAS DE APOIO DO RESULTADO — em tinta ESCURA. D21.
+   Elas viviam DENTRO do cartao escuro e por isso eram `--tinta-clara`. Com o
+   resultado em tres cartoes, elas passaram a ser desenhadas abaixo deles, sobre
+   `--superficie-2`. Manter a tinta clara aqui seria branco sobre claro —
+   exatamente o defeito de texto invisivel que a §9 registra. */
 .st-linha-apoio {{
   font-size: var(--t-mensal) !important; font-weight: 500 !important;
   line-height: 1.35 !important;
-  color: var(--tinta-clara-2) !important;
+  color: var(--tinta-secundaria) !important;
   margin: 12px 0 0 !important;
 }}
-/* Cashback — dentro do cartao escuro, com marca vermelha a esquerda. E o unico
-   bloco do resultado que NAO e margem da concessionaria: ele e pago pela
-   Suicatech, e a separacao visual existe para o cliente nao somar as duas
-   coisas por engano. */
+/* Cashback — bloco proprio, com marca vermelha a esquerda. E o unico bloco do
+   resultado que NAO e margem da concessionaria: ele e pago pela Suicatech, e a
+   separacao visual existe para o cliente nao somar as duas coisas por engano. */
 .st-cashback {{
-  display: block; margin: 16px 0 0 !important; padding: 12px 0 2px 14px;
+  display: block; margin: 14px 0 0 !important; padding: 12px 15px 12px 14px;
+  background: var(--superficie);
+  border: 1px solid var(--traco);
   border-left: 3px solid var(--marca);
+  border-radius: var(--raio-campo);
 }}
 .st-cashback-valor {{
   display: block;
   font-size: var(--t-mensal) !important; font-weight: 700 !important;
-  color: var(--tinta-clara) !important; line-height: 1.3 !important;
+  color: var(--tinta-primaria) !important; line-height: 1.3 !important;
 }}
 .st-cashback-nota {{
   display: block; margin-top: 2px;
   font-size: var(--t-premissas) !important; font-weight: 500 !important;
-  color: var(--tinta-clara-2) !important; line-height: 1.4 !important;
+  color: var(--tinta-secundaria) !important; line-height: 1.4 !important;
 }}
 .st-cashback-rateio {{
   display: block; margin-top: 4px;
   font-size: var(--t-premissas) !important; font-weight: 600 !important;
-  color: var(--tinta-clara-2) !important;
+  color: var(--tinta-secundaria) !important;
 }}
 
 /* Grade de cashback em Ajustes avancados */
@@ -612,17 +748,24 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   color: var(--tinta-primaria) !important; font-size: var(--t-rotulo) !important;
 }}
 
-/* "hoje X -> com refil Y" */
+/* "hoje X -> com refil Y" — tambem em tinta escura por D21, mesma razao das
+   linhas de apoio acima. */
 .st-hoje-refil {{
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  margin: 18px 0 0 !important; padding-top: 16px;
-  border-top: 1px solid rgba(255,255,255,.14);
+  margin: 14px 0 0 !important; padding-top: 14px;
+  border-top: 1px solid var(--traco);
   font-size: var(--t-mensal) !important; font-weight: 500 !important;
-  color: var(--tinta-clara-2) !important;
+  color: var(--tinta-secundaria) !important;
 }}
-.st-hoje-refil b {{ color: var(--tinta-clara) !important; font-weight: 700 !important; }}
+.st-hoje-refil b {{ color: var(--tinta-primaria) !important; font-weight: 700 !important; }}
 .st-hoje-refil .seta {{ color: var(--marca) !important; font-weight: 800 !important; }}
-/* Estado vazio, dentro do cartao escuro (§7.3: e a abertura da conversa) */
+
+/* AS QUATRO CLASSES A SEGUIR SAO DE TINTA CLARA e so funcionam sobre superficie
+   escura. Nenhuma e usada pela Tela 1 desde D21 — ficam porque ainda ha
+   referencia a elas em `cartao_comparativo.py` (.st-anual, .st-rotulo-resultado)
+   e em `estado_vazio_catalogo.py` (.st-falta-ancora), e porque apaga-las
+   deixaria esses caminhos sem estilo se alguem os reativar.
+   NAO as use em tela clara: sobre branco elas desaparecem. */
 .st-falta-ancora {{
   font-size: var(--t-mensal) !important; font-weight: 600 !important;
   line-height: 1.45 !important;
@@ -634,19 +777,15 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 }}
 
 /* ===================================================================
-   10. Tiles de KPI — a grade de cartoes do dashboard do cliente. D5.
+   10. Rotulo e valor de cartao — herdados dos tiles de KPI (D5).
+   OS TILES DA TELA 1 FORAM REMOVIDOS por D21, junto do modulo
+   `componentes/tiles_kpi.py` e das regras `st-key-kpis` e `st-kpi` (escritas
+   aqui sem o ponto de proposito: o checklist casa `.st-key-*` com os
+   containers reais, e uma mencao em comentario contaria como referencia).
+   Estas duas classes CONTINUAM porque as Telas 2 e 3 e o cartao de preco de
+   palheta as usam sobre superficie clara:
+     tela2_mais_vendidos.py, tela3_preco_original.py, cartao_preco_palheta.py
    =================================================================== */
-.st-key-kpis {{ margin: 14px 0 18px !important; }}
-.st-key-kpis [data-testid="stHorizontalBlock"] {{ gap: 10px !important; }}
-.st-kpi {{
-  background: var(--superficie);
-  border: 1px solid var(--traco);
-  border-top: 3px solid var(--marca);
-  border-radius: var(--raio-campo);
-  box-shadow: var(--sombra-cartao);
-  padding: 11px 13px 12px;
-  height: 100%;
-}}
 .st-kpi-rotulo {{
   display: block;
   font-size: var(--t-vendedor) !important; font-weight: 700 !important;
@@ -657,10 +796,6 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
   display: block; font-size: 26px !important; font-weight: 800 !important;
   line-height: 1.1 !important; color: var(--tinta-primaria) !important;
   font-variant-numeric: proportional-nums; margin: 0 !important;
-}}
-.st-kpi-nota {{
-  display: block; font-size: var(--t-vendedor) !important;
-  color: var(--tinta-secundaria) !important; margin: 4px 0 0 !important;
 }}
 
 /* ===================================================================
@@ -693,8 +828,8 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 /* MarcadorDecisaoAberta (§5.12): borda TRACEJADA, sem cor de alerta */
 .st-chip--aberto {{ border-style: dashed; background: var(--superficie); }}
 .st-legenda-bloco {{
-  font-size: var(--t-derivado) !important; line-height: 1.45 !important;
-  color: var(--tinta-secundaria) !important; margin: 6px 0 0 !important;
+  font-size: var(--t-derivado) !important; line-height: 1.4 !important;
+  color: var(--tinta-secundaria) !important; margin: 3px 0 0 !important;
 }}
 .st-icone svg {{
   width: 1em; height: 1em; vertical-align: -0.125em;
@@ -773,42 +908,193 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
    =================================================================== */
 [data-testid="stCheckbox"] label {{ min-height: 44px; }}
 hr, [data-testid="stDivider"] hr {{ border-color: var(--traco) !important; }}
-[data-testid="stDataFrame"] {{ border-radius: var(--raio-campo); overflow: hidden; }}
 [data-testid="stVegaLiteChart"] {{ min-height: 300px; }}
 .st-key-grafico [data-testid="stVerticalBlockBorderWrapper"] {{
   background: var(--superficie); box-shadow: var(--sombra-cartao);
 }}
 
 /* ===================================================================
-   16. Responsividade  (§8) — D3
+   15.1 TABELA PROPRIA — o gemeo em tabela (§5.11), desenhado. D20.
+   NAO ha regra para `[data-testid="stDataFrame"]` porque nao ha mais
+   `st.dataframe` no app: ele desenha numa <canvas>, nao aceita CSS nenhum, e
+   por isso as duas tabelas eram os unicos objetos da tela fora da linguagem
+   visual do resto — cabecalho, tipografia e cantos do framework no meio de
+   cartoes proprios. Uma <table> de verdade obedece a esta folha como qualquer
+   outro elemento. Ver src/componentes/tabela.py.
+   =================================================================== */
+.st-tabela {{
+  max-height: 340px; overflow: auto;
+  border: 1px solid var(--traco);
+  border-radius: var(--raio-campo);
+  background: var(--superficie);
+  scrollbar-width: thin;
+  scrollbar-color: var(--traco) var(--superficie-2);
+}}
+.st-tabela table {{
+  width: 100%; border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}}
+.st-tabela th, .st-tabela td {{
+  padding: 9px 14px; text-align: left; white-space: nowrap;
+  line-height: 1.35 !important;
+}}
+/* Numero alinhado a DIREITA. Com `tabular-nums` acima os digitos ficam de
+   largura fixa, milhar cai embaixo de milhar e a coluna vira uma regua —
+   e conferir uma coluna de margem de relance e a funcao da tabela. */
+.st-tabela .st-tabela-num {{ text-align: right; }}
+.st-tabela thead th {{
+  position: sticky; top: 0; z-index: 1;
+  background: var(--superficie-3);
+  border-bottom: 1px solid var(--traco);
+  font-size: var(--t-vendedor) !important; font-weight: 700 !important;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--tinta-secundaria) !important;
+}}
+.st-tabela tbody td {{
+  border-top: 1px solid var(--grade);
+  font-size: var(--t-derivado) !important; font-weight: 500 !important;
+  color: var(--tinta-primaria) !important;
+}}
+.st-tabela tbody td:first-child {{
+  font-weight: 700 !important; color: var(--tinta-secundaria) !important;
+}}
+.st-tabela tbody tr:hover td {{ background: var(--superficie-2); }}
+/* MARCADOR DA POSICAO ATUAL — o mesmo ponto que o grafico desenha (§5.11),
+   trazido para o gemeo: sem ele a tabela mostra a curva inteira e nao mostra
+   ONDE o cliente esta nela. Fundo lavado e filete vermelho a esquerda;
+   NENHUM numero vira vermelho (§13.1). Vem depois do :hover de proposito —
+   as duas regras empatam em especificidade e a ultima vence. */
+.st-tabela tbody tr.st-tabela-atual td {{
+  background: var(--marca-lavado);
+  color: var(--tinta-primaria) !important; font-weight: 700 !important;
+}}
+.st-tabela tbody tr.st-tabela-atual td:first-child {{
+  border-left: 3px solid var(--marca); padding-left: 11px;
+}}
+.st-tabela::-webkit-scrollbar {{ width: 11px; height: 11px; }}
+.st-tabela::-webkit-scrollbar-track {{ background: var(--superficie-2); }}
+.st-tabela::-webkit-scrollbar-thumb {{
+  background: var(--traco); border-radius: 999px;
+  border: 3px solid var(--superficie-2);
+}}
+.st-tabela::-webkit-scrollbar-thumb:hover {{ background: var(--tinta-discreta); }}
+
+/* ===================================================================
+   16. Responsividade  (§8)
    Tablet paisagem e o alvo primario; quando houver conflito, o tablet ganha.
-   Abaixo de 1024px a coluna do RESULTADO sobe acima das entradas, porque quem
-   le nessa orientacao e o cliente. O Streamlit empilha na ordem de declaracao
-   e a coluna de entradas e declarada primeiro, entao invertemos por `order`.
+
+   D3 FOI REVOGADA POR D21. Ela existia para inverter a ordem das DUAS COLUNAS
+   abaixo de 1024px — o resultado subia acima das entradas, porque em retrato
+   quem le e o cliente. Nao ha mais duas colunas: os campos ocupam a largura
+   toda e o resultado vem depois deles em qualquer largura, por decisao de
+   produto. Com isso saiu tambem a regra que dependia do container `corpo`, que
+   deixou de existir (nome escrito sem o prefixo de classe de proposito — ver a
+   nota da secao 10).
+
+   O que sobra aqui e empilhar as colunas internas dos cartoes de campo, e
+   PRESERVAR em linha os tres grupos que nao podem empilhar: os presets, o
+   cabecalho e os tres cartoes de resultado.
    =================================================================== */
 @media (max-width: 1023px) {{
   [data-testid="stHorizontalBlock"] {{ flex-direction: column !important; }}
-  .st-key-corpo > div > [data-testid="stHorizontalBlock"]
-    > [data-testid="stColumn"]:first-child {{ order: 2 !important; }}
-  .st-key-corpo > div > [data-testid="stHorizontalBlock"]
-    > [data-testid="stColumn"]:last-child {{ order: 1 !important; }}
+  /* Quatro grupos NAO empilham, e cada um por um motivo diferente:
+     - cenarios: tres botoes lado a lado sao a forma do controle (§5.3)
+     - resultado: a linha de tres cartoes e a leitura do resultado
+     - cabecalho: marca a esquerda, navegacao a direita
+     - cashback: e uma GRADE 2x3. Empilhada, o cabecalho de coluna
+       ("Consultor", "Gerente", "Marketing") deixa de encabecar nada e os seis
+       campos ficam sem rotulo visivel — a grade vira seis caixas anonimas. */
   .st-key-cenarios [data-testid="stHorizontalBlock"],
-  .st-key-kpis [data-testid="stHorizontalBlock"],
-  .st-key-cabecalho [data-testid="stHorizontalBlock"] {{
+  .st-key-resultado [data-testid="stHorizontalBlock"],
+  .st-key-cabecalho [data-testid="stHorizontalBlock"],
+  .st-key-entrada_cashback [data-testid="stHorizontalBlock"] {{
     flex-direction: row !important;
   }}
   .st-key-cenarios [data-testid="stColumn"],
-  .st-key-kpis [data-testid="stColumn"],
-  .st-key-cabecalho [data-testid="stColumn"] {{ order: 0 !important; }}
+  .st-key-resultado [data-testid="stColumn"],
+  .st-key-cabecalho [data-testid="stColumn"],
+  .st-key-entrada_cashback [data-testid="stColumn"] {{ order: 0 !important; }}
 }}
 
-/* Celular: tipografia reduzida em um passo (§8). O grafico MANTEM 300px —
-   reduzi-lo torna a curva ilegivel, e e melhor rolar. */
+/* Abaixo de 900px os tres cartoes de resultado tambem empilham: a 48px, o
+   numero do cartao principal nao cabe em um terco dessa largura, e um numero
+   cortado e pior do que um empilhamento. */
+@media (max-width: 899px) {{
+  .st-key-resultado [data-testid="stHorizontalBlock"] {{
+    flex-direction: column !important;
+  }}
+  .st-cartao {{ min-height: 0; }}
+}}
+
+/* ===================================================================
+   CELULAR (<= 767px) — D22
+   O alvo primario continua sendo o tablet paisagem, mas o app tem de ser
+   usavel no celular: e o aparelho que o vendedor tem no bolso.
+
+   O QUE NAO MUDA AQUI, de proposito:
+     - a altura dos campos continua 44px. E o piso de alvo de toque, e num
+       celular ele vale MAIS, nao menos
+     - o grafico mantem 300px. Reduzi-lo torna a curva ilegivel; e melhor rolar
+   =================================================================== */
 @media (max-width: 767px) {{
-  :root {{ --t-traducao: 36px; --t-anual: 28px; }}
+  /* Tipografia do CLIENTE reduzida em um passo (§8). A do operador nao cai:
+     ela ja esta em 15/17px depois de D22.
+
+     Por que o piso de 22px da §3.2 nao se aplica aqui: ele foi derivado de
+     "legivel a 100 cm, em angulo, sob luz forte" — a cena do tablet inclinado
+     sobre a mesa. Um celular e lido a 30-40 cm, na mao de quem le. A mesma
+     conta que pedia 22px a um metro pede menos da metade disso a 40 cm. A
+     folha ja fazia isso com a traducao e o anual desde a §8 original. */
+  :root {{ --t-traducao: 36px; --t-anual: 28px; --t-mensal: 20px; }}
+
+  /* Largura e o recurso escasso: 28px de padding de cada lado custam 14% da
+     tela de um celular de 390px. */
+  .stMainBlockContainer, .block-container {{
+    padding-left: 14px !important; padding-right: 14px !important;
+    padding-bottom: 84px !important;
+  }}
+  .st-key-cabecalho {{ margin: 0 -14px 14px !important; padding: 10px 14px !important; }}
+  /* A reserva de 190px a direita existe para o botao `novo cliente` nao cobrir
+     o texto de procedencia — que e justamente o que a faixa existe para
+     mostrar (§5.9). No celular a reserva diminui junto com o botao, mas NAO
+     desaparece: sem ela os dois se sobrepoem. */
+  .st-faixa-vendedor {{ padding: 6px 118px 6px 14px; }}
+  .st-key-faixa_novo_cliente {{ right: 14px; bottom: 9px; }}
+
+  /* O cabecalho empilha: marca em cima, navegacao embaixo, pilulas podendo
+     quebrar em duas linhas. Lado a lado a 390px, o logo de 380px e as tres
+     pilulas nao cabem — a navegacao seria cortada, e ela e o unico caminho
+     para as Telas 2 e 3. */
+  .st-key-cabecalho [data-testid="stHorizontalBlock"] {{
+    flex-direction: column !important; gap: 8px !important;
+  }}
+  .st-key-navegacao {{ justify-content: flex-start; }}
+  .st-key-navegacao [data-testid="stRadio"] > div {{ flex-wrap: wrap !important; }}
+  .st-logo {{ height: 34px; max-width: 100%; }}
+
+  /* Presets: 72px em vez de 96. Continuam sendo o maior alvo da tela. */
   .st-key-cenarios [data-testid="stButton"] button {{
     min-height: 72px !important; height: 72px !important;
   }}
+  .st-key-cenarios [data-testid="stHorizontalBlock"] {{ gap: 6px !important; }}
+  .st-key-cenarios [data-testid="stButton"] button p {{ letter-spacing: .02em; }}
+
+  /* Cartoes de campo: menos padding, e a grade de cashback apertada ao maximo
+     sem perder os 44px de altura. */
+  .st-key-entrada_operacao,
+  .st-key-entrada_hoje,
+  .st-key-entrada_dianteiro,
+  .st-key-entrada_traseiro,
+  .st-key-entrada_cashback {{
+    padding: 8px 10px 9px !important;
+  }}
+  .st-key-entrada_cashback [data-testid="stHorizontalBlock"] {{ gap: 4px !important; }}
+  .st-cash-cabecalho {{ font-size: var(--t-vendedor) !important; }}
+  .st-cash-linha {{ font-size: var(--t-vendedor) !important; }}
+  .st-cash-linha b {{ font-size: var(--t-derivado) !important; }}
+
+  .st-cartao {{ padding: 16px 16px 14px; }}
+  .st-tabela {{ max-height: 260px; }}
 }}
 
 /* §9: foco visivel em todos os controles. NUNCA outline: none. */

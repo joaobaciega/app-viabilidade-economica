@@ -1,34 +1,41 @@
-"""Tela 1 — Simulador de viabilidade (DESIGN.md §6.1).
+"""Tela 1 — Simulador de viabilidade. Reformada por D21 (27/08/2026).
 
-OBJETIVO (§6.1.1): fazer o cliente pegar o tablet. Chegar num numero anual de
-margem de contribuicao que ele mesmo ajudou a montar, com uma traducao por
-passagem que ele valide por intuicao, e com o controle de cenario AO ALCANCE DA
-MAO DELE.
+MODELO NOVO, pedido pelo cliente com base num simulador de juros compostos:
 
-ORDEM DO SCRIPT = ORDEM DE LEITURA (§6.1.3). Em Streamlit a hierarquia visual E
-a ordem das chamadas, e a §6.1.2 fixa o que o cliente ve primeiro:
-  1. a traducao em escala humana — 48px
-  2. os tres botoes de cenario — 96px, imediatamente acima do resultado
-  3. o valor anual — 36px
-  4. o mensal, a faixa de premissas e os tiles
-  5. o grafico de sensibilidade
-  6. a coluna de entradas, a esquerda — e o lado do VENDEDOR
-  7. a faixa do vendedor, no rodape — o cliente nao le a 1 m, e assim que deve ser
+    1. a tela abre SO COM OS CAMPOS, distribuidos pela largura toda
+    2. durante o preenchimento NADA e calculado e nada aparece
+    3. um botao "Mostrar Resultado" habilita quando os obrigatorios estao
+       preenchidos, e revela o resultado ABAIXO dos campos
+    4. o resultado sao TRES numeros — faturamento adicional, margem de
+       contribuicao adicional, mark up da operacao — e depois grafico e tabela
 
-A ANCORA (mudanca de 11/08/2026, decisao do cliente): em vez de pedir "margem
-de contribuicao mensal atual com palhetas" — pergunta que gerente de pos-venda
-nao responde de cabeca — o app pergunta o que ele sabe de cor:
+O QUE ISSO SUBSTITUI, e o que se perdeu (registro completo em D21):
 
-    quantas palhetas voce vende por mes, e a quanto
+  - as DUAS COLUNAS (`st.columns([5, 7])`, §3.3) acabaram. Nao existe mais "o
+    lado do vendedor" a esquerda e "o lado que o cliente le" a direita: a tela
+    tem uma coluna de campos em largura total e o resultado embaixo. Com isso
+    morre D3 (a reordenacao por CSS abaixo de 1024px) e enfraquece a mitigacao
+    de D11, que dizia que o slider do traseiro era inofensivo porque vivia na
+    coluna do vendedor
+  - a TRADUCAO em escala humana saiu da tela (segue no PDF, no painel de formula
+    e na faixa do vendedor)
+  - o expander "Ajustes avancados" (§5.10) acabou: consultores, dias uteis e a
+    grade de cashback estao na superficie primaria
+  - os TILES DE KPI foram removidos
+  - o teto de SEIS campos primarios (§6.1.4) foi abandonado
 
-O preco da original vem da aba "Preco original", consultado ao vivo. O custo
-dela e opcional; sem ele nao existe incremental e o rotulo do resultado diz
-"margem de contribuicao do refil". O app nunca ASSUME uma margem para a original.
+O QUE FOI PRESERVADO DE PROPOSITO, e nao e detalhe:
 
-DENSIDADE: a §6.1.4 fixa 6 campos. Com o traseiro trazido para a superficie
-primaria a pedido do cliente, e com a ancora virando tres campos, o teto passa a
-ser respeitado por BLOCO, nao pela tela — cada bloco tem no maximo tres campos e
-um titulo que diz o que ele responde. Registrado em docs/DIVERGENCIAS.md (D8).
+  - a FAIXA DE PREMISSAS aparece SEMPRE, antes do clique, na area de campos. Ela
+    e o que declara "sem canibalizacao — todo refil e venda nova" e o traseiro
+    fora da conta. Sem ela o numero passa a ser lido como promessa, e a §5.10
+    proibe premissa que muda o resultado sem aparecer
+  - o TRASEIRO continua OPCIONAL. Vazio significa "fora da conta" e e um estado
+    legitimo (§5.13) — o botao nao o exige
+  - os presets seguem com 96px e continuam sendo o protagonista do cenario (§5.3)
+  - a faixa do vendedor continua no rodape, ilegivel a um metro (§5.9)
+  - nenhum aviso bloqueia o calculo (§6.1.8): o botao gateia a EXIBICAO, e a
+    plausibilidade continua avisando so na faixa do vendedor
 
 A TELA 1 NAO LE PLANILHA E NAO FAZ NENHUMA REQUISICAO (P11, §7.1). Repare nos
 imports: nao ha `carregar_snapshot`, `requests`, `pandas.read_*` nem `openpyxl`.
@@ -50,11 +57,24 @@ from src.componentes import (
     grafico_sensibilidade,
     painel_formula,
     slider_ajuste_fino,
-    tiles_kpi,
 )
 from src.componentes.campo_unidade import campo_moeda, campo_quantidade
 from src.componentes.exportador_pdf import bloco_exportar
 from src.icones import svg
+
+# Nome curto de cada obrigatorio, para a linha "falta preencher".
+#
+# NAO e o rotulo do campo: o rotulo carrega a unidade e e longo de proposito
+# (§5.1). Aqui o que serve e o nome mais curto que ainda identifica o campo, em
+# minuscula, para caber numa linha so.
+NOMES_CURTOS: dict[str, str] = {
+    estado.K_PASSAGENS: "passagens por mês",
+    estado.K_ORIGINAIS: "palhetas vendidas por mês",
+    estado.K_PRECO_ORIG: "preço da original",
+    estado.K_CUSTO_ORIG: "custo da original",
+    estado.K_PRECO_D: "preço do dianteiro",
+    estado.K_CUSTO_D: "custo do dianteiro",
+}
 
 
 def _secao(icone: str, titulo: str, nota: str = "") -> None:
@@ -68,52 +88,32 @@ def _secao(icone: str, titulo: str, nota: str = "") -> None:
 def renderizar() -> None:
     estado.iniciar()
 
-    with st.container(key="corpo"):
-        col_entradas, col_resultado = st.columns([5, 7], gap="large")
+    _campos()
 
-        # ==============================================================
-        # COLUNA ESQUERDA (5/12) — o lado do VENDEDOR, escala de 40 cm.
-        # Declarada primeiro; abaixo de 1024px o CSS a manda para baixo (D3,
-        # §8), porque em retrato quem le e o cliente.
-        # ==============================================================
-        with col_entradas:
-            _entradas()
-
-        # ==============================================================
-        # COLUNA DIREITA (7/12) — o lado que o CLIENTE le, escala de 1 m.
-        # E a maior porque e a que precisa dos 48px (§3.3).
-        # ==============================================================
-        with col_resultado:
-            # Protagonista: acima do bloco de resultado, ao alcance de quem
-            # esta do outro lado da mesa (§5.3). Recebe as entradas so para
-            # derivar qual preset esta ativo — o estado ativo nao e guardado.
-            botoes_cenario.botoes(estado.ler_entradas())
-            slider_ajuste_fino.slider()
-
-            # Reler DEPOIS dos controles: o slider acabou de escrever no
-            # session_state ao ser instanciado neste mesmo rerun.
-            entradas = estado.ler_entradas()
-            resultado = calcular(entradas)
-
-            bloco_resultado.bloco(resultado)
-            faixa_premissas.faixa(entradas, resultado)
-            tiles_kpi.tiles(entradas, resultado)
-
-            with st.container(key="grafico"):
-                grafico_sensibilidade.grafico(entradas, resultado)
-            grafico_sensibilidade.tabela_da_curva(entradas, resultado)
-            painel_formula.painel(entradas, resultado)
-            bloco_exportar(entradas, resultado)
-
-    # ==================================================================
-    # Largura total: Ajustes avancados e a faixa do vendedor
-    # ==================================================================
-    ajustes_avancados.painel()
-
-    # A faixa e a ULTIMA coisa do script: precisa refletir tudo que os
-    # avancados acabaram de mudar.
+    # A faixa de premissas ANTES do botao, e portanto antes de existir qualquer
+    # numero na tela: ela declara as premissas da conta, nao o resultado dela.
     entradas = estado.ler_entradas()
     resultado = calcular(entradas)
+    faixa_premissas.faixa(entradas, resultado)
+
+    _botao_de_acao()
+
+    # ==================================================================
+    # O RESULTADO — so depois do toque explicito, e so com os
+    # obrigatorios preenchidos. Ver estado.resultado_visivel().
+    # ==================================================================
+    if estado.resultado_visivel():
+        bloco_resultado.bloco(resultado)
+
+        with st.container(key="grafico"):
+            grafico_sensibilidade.grafico(entradas, resultado)
+        grafico_sensibilidade.tabela_da_curva(entradas, resultado)
+
+        painel_formula.painel(entradas, resultado)
+        bloco_exportar(entradas, resultado)
+
+    # A faixa e a ULTIMA coisa do script: precisa refletir tudo que os campos
+    # acabaram de mudar.
     faixa_vendedor.faixa(
         plausibilidade.avaliar(entradas, resultado),
         meta=[
@@ -124,69 +124,105 @@ def renderizar() -> None:
     faixa_vendedor.botao_novo_cliente()
 
 
-def _entradas() -> None:
-    """Quatro cartoes, cada um respondendo uma pergunta do vendedor.
+# ---------------------------------------------------------------------------
+# A AREA DE CAMPOS — largura total, um cartao por pergunta
+# ---------------------------------------------------------------------------
+
+
+def _campos() -> None:
+    """Cinco cartoes, cada um respondendo uma pergunta do vendedor.
 
     Cada cartao e um `st.container(key=...)` — NAO um `<div>` injetado. Um
     markdown com `<div class="...">` abre e FECHA a propria div: os campos
     seguintes ficam fora dela, o CSS nao pega, e o "cartao" renderiza como uma
     pilula vazia. Ja aconteceu duas vezes nesta construcao (docs/DIVERGENCIAS
     §4.2 e §4.8).
-    """
 
-    # --- Bloco A — a operacao da concessionaria ---------------------------
-    #
-    # VOCABULARIO: nenhum rotulo fala do cliente em terceira pessoa. O tablet
-    # esta inclinado NA DIRECAO dele — "palhetas que ele vende" e uma frase
-    # sobre alguem que esta lendo a frase. Os rotulos sao impessoais
-    # ("palhetas vendidas por mês"), e onde o texto se dirige a alguem, ele se
-    # dirige ao cliente em segunda pessoa.
+    VOCABULARIO: nenhum rotulo fala do cliente em terceira pessoa (D14). O
+    tablet esta inclinado NA DIRECAO dele — "palhetas que ele vende" e uma frase
+    sobre alguem que esta lendo a frase.
+    """
+    _bloco_operacao()
+    _bloco_hoje()
+    _bloco_refil()
+    _bloco_cashback()
+    _bloco_cenario()
+
+
+def _bloco_operacao() -> None:
     _secao("operacao", "A operação da concessionária", "informado na reunião")
 
     with st.container(key="entrada_operacao"):
-        st.number_input(
-            "Pontos de venda, no total",
-            min_value=1,
-            step=1,
-            key=estado.K_PONTOS,
-        )
+        col_a, col_b, col_c, col_d = st.columns(4, gap="medium")
+
+        with col_a:
+            st.number_input(
+                "Pontos de venda, no total",
+                min_value=1,
+                step=1,
+                key=estado.K_PONTOS,
+            )
         pontos = int(st.session_state.get(estado.K_PONTOS) or 1)
 
-        # §5.1: o total derivado aparece SEMPRE que ha valor, INCLUSIVE quando o
-        # multiplicador vale 1. Sumir com ele quando o valor e trivial ensina o
-        # cliente a nao procura-lo quando deixa de ser.
-        campo_quantidade(
-            chave=estado.K_PASSAGENS,
-            rotulo="Passagens por mês, por ponto de venda",
-            derivado=lambda v: formato.total_derivado_passagens(v, pontos),
-        )
+        with col_b:
+            # §5.1: o total derivado aparece SEMPRE que ha valor, INCLUSIVE
+            # quando o multiplicador vale 1. Sumir com ele quando o valor e
+            # trivial ensina o cliente a nao procura-lo quando deixa de ser.
+            campo_quantidade(
+                chave=estado.K_PASSAGENS,
+                rotulo="Passagens por mês, por ponto de venda",
+                derivado=lambda v: formato.total_derivado_passagens(v, pontos),
+            )
 
-    # --- Bloco B — a venda de palhetas hoje (a ancora) --------------------
+        # Os dois que vinham de Ajustes avancados, um por coluna. Ficam no fim
+        # da linha porque sao os campos mais discretos da tela: nenhum dos dois
+        # entra em conta de margem.
+        with col_c:
+            ajustes_avancados.campo_consultores()
+        with col_d:
+            ajustes_avancados.campo_dias_uteis()
+
+        st.caption(ajustes_avancados.NOTA_OPERACAO)
+
+
+def _bloco_hoje() -> None:
     _secao("hoje", "A venda de palhetas hoje", "a âncora do resultado")
 
     with st.container(key="entrada_hoje"):
-        campo_quantidade(
-            chave=estado.K_ORIGINAIS,
-            rotulo="Palhetas vendidas por mês, por ponto de venda",
-            derivado=lambda v: formato.total_derivado_palhetas(v, pontos),
-        )
-        campo_moeda(
-            chave=estado.K_PRECO_ORIG,
-            rotulo="Preço da palheta original cobrado hoje",
-        )
-        campo_moeda(
-            chave=estado.K_CUSTO_ORIG,
-            rotulo="Custo da palheta original (opcional)",
-            legenda=(
-                "Confira o preço da original ao vivo na aba "
-                "<b>Preço original</b>. Sem o custo dela não existe margem da "
-                "original para comparar, e o resultado é rotulado como margem "
-                "<b>do refil</b>, não incremental."
-            ),
-        )
+        col_a, col_b, col_c = st.columns(3, gap="medium")
+        pontos = int(st.session_state.get(estado.K_PONTOS) or 1)
 
-    # --- Bloco C — o refil, dianteiro -------------------------------------
-    _secao("produto", "O refil Suicatech", "preço desta negociação")
+        with col_a:
+            campo_quantidade(
+                chave=estado.K_ORIGINAIS,
+                rotulo="Palhetas vendidas por mês, por ponto de venda",
+                derivado=lambda v: formato.total_derivado_palhetas(v, pontos),
+            )
+        with col_b:
+            campo_moeda(
+                chave=estado.K_PRECO_ORIG,
+                rotulo="Preço da palheta original cobrado hoje",
+                legenda=(
+                    "Confira o preço da original ao vivo na aba "
+                    "<b>Preço original</b>."
+                ),
+            )
+        with col_c:
+            campo_moeda(
+                chave=estado.K_CUSTO_ORIG,
+                rotulo="Custo da palheta original",
+                legenda=(
+                    "Entra na margem da original e no <b>mark up da "
+                    "operação</b> — por isso é obrigatório."
+                ),
+            )
+
+
+def _bloco_refil() -> None:
+    # PRECO TABELADO (D21): a versao anterior dizia que preco e custo do refil
+    # eram "negociados caso a caso". O cliente corrigiu — o preco e de tabela, e
+    # nenhum texto da tela pode sugerir negociacao por cliente.
+    _secao("produto", "O refil Suicatech", "preço de tabela")
 
     with st.container(key="entrada_dianteiro"):
         st.markdown(
@@ -194,52 +230,116 @@ def _entradas() -> None:
             " — duas medidas, vendido em par</p>",
             unsafe_allow_html=True,
         )
-        campo_moeda(
-            chave=estado.K_PRECO_D,
-            rotulo="Preço ao consumidor final, por par (dianteiro)",
-        )
-        campo_moeda(
-            chave=estado.K_CUSTO_D,
-            rotulo="Custo de aquisição, por par (dianteiro)",
-        )
+        col_a, col_b = st.columns(2, gap="medium")
+        with col_a:
+            campo_moeda(
+                chave=estado.K_PRECO_D,
+                rotulo="Preço ao consumidor final, por par (dianteiro)",
+            )
+        with col_b:
+            campo_moeda(
+                chave=estado.K_CUSTO_D,
+                rotulo="Custo de aquisição, por par (dianteiro)",
+            )
 
-    # --- Bloco D — o refil, traseiro --------------------------------------
-    #
-    # O TRASEIRO na superficie primaria, a pedido do cliente (11/08/2026);
-    # antes vivia em Ajustes avancados. §5.13: preco e custo PROPRIOS — e
-    # proibido derivar do dianteiro por qualquer fator, inclusive / 2.
+    # §5.13: preco e custo PROPRIOS do traseiro — e proibido derivar do
+    # dianteiro por qualquer fator, inclusive / 2.
     with st.container(key="entrada_traseiro"):
         st.markdown(
             '<p class="st-rotulo-categoria"><b>Traseiro · unidade</b>'
             " — lâmina única, preço próprio</p>",
             unsafe_allow_html=True,
         )
-        campo_moeda(
-            chave=estado.K_PRECO_T,
-            rotulo="Preço ao consumidor final, por unidade (traseiro)",
-        )
-        campo_moeda(
-            chave=estado.K_CUSTO_T,
-            rotulo="Custo de aquisição, por unidade (traseiro)",
-            legenda=(
-                "Preço e custo são negociados caso a caso — abrem em branco de "
-                "propósito. Enquanto estiverem vazios, o traseiro fica "
-                "<b>fora da conta</b>, nunca estimado."
-            ),
-        )
+        col_a, col_b = st.columns(2, gap="medium")
+        with col_a:
+            campo_moeda(
+                chave=estado.K_PRECO_T,
+                rotulo="Preço ao consumidor final, por unidade (traseiro)",
+            )
+        with col_b:
+            campo_moeda(
+                chave=estado.K_CUSTO_T,
+                rotulo="Custo de aquisição, por unidade (traseiro)",
+                legenda=(
+                    "Preço e custo vêm da tabela Suicatech vigente. Enquanto "
+                    "estiverem vazios, o traseiro fica <b>fora da conta</b>, "
+                    "nunca estimado."
+                ),
+            )
 
-        # O APROVEITAMENTO DO TRASEIRO na superficie primaria, a pedido do
-        # cliente (11/08/2026): "normalmente elas tem aproveitamento menor,
-        # algo em torno de 10% — deixe facil de trocar o valor".
-        #
-        # Fica AQUI, na coluna do vendedor, e nao na coluna da direita: o
-        # protagonista da tela e o controle de cenario do dianteiro (§5.3), e um
-        # segundo slider do lado do cliente competiria com ele — que e
-        # exatamente o convite ao risco n. 1 do plano. Aqui ele e controle de
-        # operacao, ao lado do preco e do custo da mesma categoria.
+        # O APROVEITAMENTO DO TRASEIRO fica AQUI, junto do preco e do custo da
+        # mesma categoria — e nao junto dos presets do dianteiro. Os presets sao
+        # o protagonista do cenario (§5.3) e um segundo controle grande ao lado
+        # deles convidaria o risco n. 1 do plano.
         campo_percentual_traseiro()
 
-    st.caption(f"Demais premissas em Ajustes avançados · {P.rotulo_do_anual()}")
+
+def _bloco_cashback() -> None:
+    _secao("preco", "Cashback", "pago pela Suicatech")
+
+    with st.container(key="entrada_cashback"):
+        ajustes_avancados.cashback()
+
+
+def _bloco_cenario() -> None:
+    _secao("cenario", "O cenário de aproveitamento", "aperte um, ou ajuste no slider")
+
+    # O protagonista (§5.3). Recebe as entradas so para derivar qual preset esta
+    # ativo — o estado ativo NAO e guardado.
+    botoes_cenario.botoes(estado.ler_entradas())
+    slider_ajuste_fino.slider()
+
+
+# ---------------------------------------------------------------------------
+# O BOTAO — o gate da exibicao
+# ---------------------------------------------------------------------------
+
+
+def _botao_de_acao() -> None:
+    """"Mostrar Resultado", habilitado so com os obrigatorios preenchidos.
+
+    POR QUE `disabled=` AQUI, quando o projeto o evita em todo o resto: a
+    §10-F argumenta que "um campo desabilitado com rotulo promete
+    funcionalidade que nao existe; ausencia nao promete nada". Aqui e o
+    contrario — o botao PRECISA estar visivel desde o inicio, porque ele e o
+    que explica o modelo da tela ("preencha e aperte"). Um botao que aparece do
+    nada quando o sexto campo e preenchido nao ensina nada.
+
+    E o que falta e DITO, em linha discreta, sem `st.warning` (proibido, §12) e
+    sem vocabulario de alerta (§4: nada de "invalido", "atencao", "erro").
+    """
+    with st.container(key="acao"):
+        completo = estado.esta_completo()
+
+        if estado.resultado_visivel():
+            # Com o resultado na tela, "Mostrar" nao faria nada. O caminho de
+            # volta para a tela de campos e util na reuniao: recomeca o pitch
+            # sem apagar nada do que foi digitado.
+            st.button(
+                "Esconder resultado",
+                key="btn_esconder",
+                on_click=estado.esconder_resultado,
+                width="stretch",
+            )
+            return
+
+        st.button(
+            "Mostrar Resultado",
+            key="btn_mostrar",
+            type="primary",
+            disabled=not completo,
+            on_click=estado.mostrar_resultado,
+            width="stretch",
+        )
+
+        if not completo:
+            faltam = " · ".join(
+                NOMES_CURTOS.get(chave, chave) for chave in estado.faltando()
+            )
+            st.markdown(
+                f'<p class="st-acao-falta">Falta preencher: {faltam}</p>',
+                unsafe_allow_html=True,
+            )
 
 
 def campo_percentual_traseiro() -> None:
@@ -249,10 +349,12 @@ def campo_percentual_traseiro() -> None:
     diferente de "facil de trocar" no teclado: o slider resolve o ajuste
     grosso com o dedo, e os tres atalhos levam direto aos valores da carteira.
 
-    A procedencia continua declarada: so os 10% sao medidos; 7% e 13% sao
-    DERIVADOS do dianteiro na mesma proporcao (§5.7, §10-H). O atalho nao
-    apaga essa distincao — a faixa de premissas segue mostrando
-    `≈ derivado` quando o valor ativo e um dos extremos.
+    PROCEDENCIA (mudou em D21): as tres faixas do traseiro — 5%, 10% e 18% —
+    passaram a ser declaradas como medidas na carteira. Antes, so os 10% eram
+    medidos e os extremos eram derivados do dianteiro na mesma proporcao, e o
+    atalho dizia qual era qual. A distincao `◆ carteira` / `≈ derivado` continua
+    montada no codigo (marcador_procedencia): ela volta a aparecer no dia em que
+    um preset voltar a ser derivado.
     """
     lo, hi = P.SLIDER_DOMINIO
     st.slider(
@@ -263,7 +365,7 @@ def campo_percentual_traseiro() -> None:
         format="%d%%",
         help=(
             "Quanto das passagens converte em refil traseiro. Normalmente é "
-            "menor que o dianteiro: 10% é a média medida na carteira."
+            "menor que o dianteiro."
         ),
     )
 
@@ -271,7 +373,6 @@ def campo_percentual_traseiro() -> None:
         colunas = st.columns(len(P.PRESETS), gap="small")
         for coluna, preset in zip(colunas, P.PRESETS):
             pp = int(round(preset.traseiro * 100))
-            medido = preset.origem_traseiro == "carteira_medida"
             with coluna:
                 st.button(
                     f"{pp}%",
@@ -279,11 +380,7 @@ def campo_percentual_traseiro() -> None:
                     width="stretch",
                     on_click=estado.aplicar_traseiro,
                     args=(preset.traseiro,),
-                    help=(
-                        "medido na carteira Suicatech"
-                        if medido
-                        else "derivado do dianteiro na mesma proporção — não medido"
-                    ),
+                    help="medido na carteira Suicatech",
                 )
     st.markdown(
         f'<p class="st-legenda-bloco">{P.LEGENDA_PRESETS_TRASEIRO}.</p>',

@@ -159,7 +159,7 @@
 
   "T10": {
     "titulo": "Dominio do grafico igual ao do slider",
-    "esperado": { "dominio": [0, 60] }
+    "esperado": { "dominio": [0, 80] }
   },
 
   "T11": {

@@ -77,6 +77,16 @@ def decimal(valor: float, casas: int = 1) -> str:
     return f"{valor:.{casas}f}".replace(".", ",")
 
 
+def multiplo(valor: float, casas: int = 1) -> str:
+    """2.34 -> '2,3×'. O mark up da operacao (D21).
+
+    O sufixo `×` e o que impede a leitura errada mais provavel: sem ele, "2,3"
+    ao lado de duas colunas de reais le como reais. Mark up e adimensional, nao
+    e moeda e nao e percentual — e por isso NAO usa `moeda_*` nem `percentual`.
+    """
+    return decimal(valor, casas) + "×"
+
+
 # ---------------------------------------------------------------------------
 # A traducao em escala humana (DESIGN §6.1.5, §5.5, plano §3.6)
 # ---------------------------------------------------------------------------

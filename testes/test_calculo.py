@@ -38,12 +38,20 @@ def test_T1_cenario_base() -> None:
     assert r.margem_atual == pytest.approx(e["margem_atual"], abs=CENTAVO)
 
 
-def test_T1_traducao_vem_antes_do_anual_e_maior() -> None:
-    """P2 / §5.5 — a regra de implementacao mais facil de inverter.
+def test_T1_ordem_dos_tres_cartoes_e_a_hierarquia(  # noqa: D401
+) -> None:
+    """D21 — a ordem dos tres numeros, e o tamanho relativo deles.
+
+    Substitui `test_T1_traducao_vem_antes_do_anual_e_maior`. A regra que ele
+    travava (a traducao em escala humana vem antes do anual, §5.5 / P2) deixou
+    de valer na TELA: a traducao saiu dela e o resultado passou a ser
+    faturamento -> margem -> mark up. A mesma regra continua travada no PDF,
+    por `test_pdf_traducao_vem_antes_do_anual`, porque no documento a ordem de
+    leitura da §5.5 nao mudou.
 
     Duas verificacoes, porque as duas podem falhar independentemente:
-      1. a traducao e renderizada ANTES do anual, na ordem do script
-      2. t-traducao >= 1,25 x t-anual
+      1. a ordem dos tres cartoes, na ordem do script
+      2. o cartao principal e >= 1,25 x os outros dois (48/36 = 1,33)
     """
     import inspect
 
@@ -51,15 +59,82 @@ def test_T1_traducao_vem_antes_do_anual_e_maior() -> None:
     from src.css import T_ANUAL, T_TRADUCAO
 
     assert T_TRADUCAO >= 1.25 * T_ANUAL, (
-        f"t-traducao ({T_TRADUCAO}) precisa ser >= 1,25 x t-anual ({T_ANUAL}). "
-        f"Inverter e o erro de implementacao mais provavel desta tela."
+        f"o numero do cartao principal ({T_TRADUCAO}) precisa ser >= 1,25 x o "
+        f"dos outros dois ({T_ANUAL}) — sem isso os tres cartoes tem o mesmo "
+        f"peso e a hierarquia pedida desaparece"
     )
 
-    fonte = inspect.getsource(bloco_resultado._resultado)
-    assert fonte.index("st-traducao") < fonte.index("st-anual"), (
-        "a traducao precisa ser renderizada ANTES do valor anual na ordem do "
-        "script (§5.5, §6.1.2)"
+    fonte = inspect.getsource(bloco_resultado._cartoes)
+    posicoes = [
+        fonte.index("Faturamento adicional"),
+        fonte.index("Margem de contribuição adicional"),
+        fonte.index("_cartao_markup"),
+    ]
+    assert posicoes == sorted(posicoes), (
+        "a ordem dos cartoes precisa ser faturamento adicional -> margem de "
+        "contribuicao adicional -> mark up da operacao (D21)"
     )
+
+
+def test_markup_da_operacao_e_faturamento_sobre_custo() -> None:
+    """D21 — o mark up e a razao entre as duas somas, refil + original.
+
+    Verificado contra a conta feita a mao a partir das entradas, e nao contra o
+    proprio codigo: o valor tem de ser (faturamento refil + faturamento atual)
+    dividido por (CMV refil + CMV atual).
+    """
+    e = entradas_do_caso("T1")
+    r = calcular(e)
+
+    faturamento = r.faturamento_refil + r.faturamento_atual
+    custo = r.cmv_refil + r.cmv_atual
+    assert r.markup_operacao == pytest.approx(faturamento / custo)
+
+    # E as duas parcelas de custo sao o que dizem ser.
+    assert r.cmv_refil == pytest.approx(
+        r.pares_dianteiros * e.custo_dianteiro
+        + r.unidades_traseiras * e.custo_traseiro
+    )
+    assert r.cmv_atual == pytest.approx(r.originais_por_mes * e.custo_original)
+
+    # Coerencia com a margem: faturamento - custo = margem, nas duas pontas.
+    assert r.faturamento_refil - r.cmv_refil == pytest.approx(r.margem_refil)
+    assert r.faturamento_atual - r.cmv_atual == pytest.approx(r.margem_atual)
+
+
+def test_markup_e_none_quando_falta_o_custo_da_original() -> None:
+    """Sem uma parcela, o mark up NAO EXISTE — nunca 1,0 disfarcado.
+
+    Um mark up de 1,0 significaria "vende ao preco de custo", que e uma
+    afirmacao que ninguem fez. Mesma doutrina de `curvas_comparadas`: o app nao
+    assume valor nenhum para o que nao foi informado.
+    """
+    from dataclasses import replace
+
+    sem_custo = replace(entradas_do_caso("T1"), custo_original=None)
+    r = calcular(sem_custo)
+
+    assert r.cmv_atual is None
+    assert r.markup_operacao is None
+    # O resto da conta continua de pe: a ausencia do mark up nao contamina nada.
+    assert r.anual is not None
+    assert r.faturamento_refil is not None
+
+
+def test_markup_e_none_com_custo_total_zero() -> None:
+    """Divisor zero devolve None. Nao existe piso de preco (decisao F)."""
+    from dataclasses import replace
+
+    de_graca = replace(
+        entradas_do_caso("T1"),
+        custo_dianteiro=0.0,
+        custo_traseiro=0.0,
+        custo_original=0.0,
+    )
+    r = calcular(de_graca)
+
+    assert r.cmv_refil == 0.0 and r.cmv_atual == 0.0
+    assert r.markup_operacao is None
 
 
 def test_T2_cashback_por_venda_nas_duas_categorias() -> None:
@@ -251,10 +326,22 @@ def test_T5_grafico_nao_e_desenhado_sem_operacao() -> None:
 
 def test_T9_preset_ativo_e_derivado() -> None:
     """Slider a 27% => NENHUM preset ativo, e `Ct` permanece em 10%."""
+    from dataclasses import replace
+
     e = esperado("T9")
 
-    # Preset exato: ativo.
-    assert preset_ativo(entradas_do_caso("T1")) == "realista"
+    # Preset exato: ativo. As entradas vem do proprio preset realista, e nao do
+    # caso T1: desde D21 o realista e 40%/10% e o T1 continua em 30%/10% (os
+    # numeros de ouro dos 16 casos nao foram recalculados de proposito — ver
+    # D21 em docs/DIVERGENCIAS.md). Derivar do preset mantem este teste medindo
+    # o que ele quer medir: que "preset ativo" e uma COMPARACAO, nao um flag.
+    realista = P.preset_por_nome("realista")
+    exato = replace(
+        entradas_do_caso("T1"),
+        aproveitamento_dianteiro=realista.dianteiro,
+        aproveitamento_traseiro=realista.traseiro,
+    )
+    assert preset_ativo(exato) == "realista"
 
     # Slider movido para 27%: nenhum botao aceso.
     entradas = entradas_do_caso("T9")

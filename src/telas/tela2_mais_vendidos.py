@@ -31,11 +31,10 @@ from __future__ import annotations
 
 import html
 
-import pandas as pd
 import streamlit as st
 
 from src import formato
-from src.componentes import faixa_vendedor
+from src.componentes import faixa_vendedor, tabela
 from src.dados.carregar_emplacamentos import Base, Marca, Modelo, carregar
 from src.icones import svg
 
@@ -260,20 +259,28 @@ def _tabela(base: Base, marca: Marca) -> None:
 
         # Convencao do projeto: o valor entra na tabela JA FORMATADO como
         # texto, para o pt-BR nao depender de configuracao do navegador.
-        st.dataframe(
-            pd.DataFrame(
-                {
-                    "#": [f"{m.posicao}º" for m in marca.modelos],
-                    "Modelo": [m.modelo for m in marca.modelos],
-                    "Categoria": [m.categoria for m in marca.modelos],
-                    colunas[0]: [_unidades(m.atual) for m in marca.modelos],
-                    colunas[1]: [_unidades(m.anterior) for m in marca.modelos],
-                    "Variação": [_variacao(m.variacao) for m in marca.modelos],
-                    colunas[2]: [_unidades(m.fechado) for m in marca.modelos],
-                }
-            ),
-            hide_index=True,
-            width="stretch",
+        #
+        # A tabela e desenhada por src/componentes/tabela.py, e nao por
+        # `st.dataframe`: a canvas do dataframe nao aceita CSS nenhum, e esta
+        # era uma das duas tabelas do app que destoavam do resto da tela.
+        # As quatro colunas de numero vao alinhadas a direita — e o que deixa
+        # milhar embaixo de milhar e torna a coluna conferivel de relance.
+        tabela.tabela(
+            colunas=["#", "Modelo", "Categoria", colunas[0], colunas[1],
+                     "Variação", colunas[2]],
+            linhas=[
+                [
+                    f"{m.posicao}º",
+                    m.modelo,
+                    m.categoria,
+                    _unidades(m.atual),
+                    _unidades(m.anterior),
+                    _variacao(m.variacao),
+                    _unidades(m.fechado),
+                ]
+                for m in marca.modelos
+            ],
+            numericas=(3, 4, 5, 6),
         )
 
         for modelo, nota in notas:

@@ -9,8 +9,7 @@ A legenda fica SOB O BLOCO INTEIRO de preco e custo, nao sob cada campo:
     [                    ]        <- vazio, sempre
     Custo de aquisicao, por par (dianteiro)
     [                    ]        <- vazio, sempre
-    Preco e custo sao negociados caso a caso.     <- t-derivado
-    Abrem em branco de proposito.
+    Preco e custo vem da tabela Suicatech vigente.   <- t-derivado
 
 REGRAS (§5.2):
   - value=None. NUNCA um numero, nunca um placeholder numerico que pareca valor
@@ -38,8 +37,11 @@ import streamlit as st
 from src import parametros as P
 from src.componentes.campo_unidade import campo_moeda
 
+# D21: o texto dizia "negociados caso a caso". O cliente corrigiu — o preco do
+# refil e TABELADO, e nenhum texto da tela pode sugerir negociacao por cliente.
 LEGENDA_BLOCO = (
-    "Preço e custo são negociados caso a caso. Abrem em branco de propósito."
+    "Preço e custo vêm da tabela Suicatech vigente. "
+    "Abrem em branco de propósito."
 )
 
 

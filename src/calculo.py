@@ -128,15 +128,25 @@ class Resultado:
     margem_refil: float | None = None  # MC
 
     faturamento_refil: float | None = None
+    # CMV do refil = Ud x Kd + Ut x Kt. Campo EXPLICITO, e nao
+    # `faturamento_refil - margem_refil`: o painel de formula precisa mostrar a
+    # conta, e um leitor nao deveria ter que deduzir o custo por subtracao.
+    cmv_refil: float | None = None
 
     # A operacao de hoje
     originais_por_mes: float | None = None  # Q x pontos
     faturamento_atual: float | None = None  # Q x Po
+    cmv_atual: float | None = None  # Q x Ko, None sem Ko
     margem_atual: float | None = None  # Q x (Po - Ko), None sem Ko
     margem_unitaria_original: float | None = None  # Po - Ko
 
     incremental_mensal: float | None = None
     anual: float | None = None
+
+    # Mark up da operacao INTEIRA (refil + palheta original), adimensional:
+    # (faturamento refil + faturamento atual) / (CMV refil + CMV atual).
+    # `None` quando falta qualquer parcela — nunca 1,0 disfarcado de "sem dado".
+    markup_operacao: float | None = None
 
     traducao_fracao: float = 0.0
     traseiro_na_conta: bool = False
@@ -191,6 +201,7 @@ def calcular(e: Entradas) -> Resultado:
             traducao_fracao=e.aproveitamento_dianteiro,
             originais_por_mes=_originais(e),
             faturamento_atual=_faturamento_atual(e),
+            cmv_atual=_cmv_atual(e),
         )
 
     # --- Volume do refil ---------------------------------------------------
@@ -205,17 +216,20 @@ def calcular(e: Entradas) -> Resultado:
     if com_traseiro:
         MCt = Ut * (e.preco_traseiro - e.custo_traseiro)
         faturamento = Ud * e.preco_dianteiro + Ut * e.preco_traseiro
+        cmv_refil = Ud * e.custo_dianteiro + Ut * e.custo_traseiro
     else:
         # Fora da conta. NAO estimado, NAO inferido, NAO derivado do dianteiro.
         MCt = 0.0
         Ut = 0.0
         faturamento = Ud * e.preco_dianteiro
+        cmv_refil = Ud * e.custo_dianteiro
 
     MC = MCd + MCt
 
     # --- A operacao de hoje ------------------------------------------------
     originais = _originais(e)
     faturamento_atual = _faturamento_atual(e)
+    cmv_atual = _cmv_atual(e)
     com_margem_original = tem_margem_da_original(e)
     margem_unit_original = (
         e.preco_original - e.custo_original if com_margem_original else None
@@ -262,12 +276,17 @@ def calcular(e: Entradas) -> Resultado:
         margem_traseiro=MCt,
         margem_refil=MC,
         faturamento_refil=faturamento,
+        cmv_refil=cmv_refil,
         originais_por_mes=originais,
         faturamento_atual=faturamento_atual,
+        cmv_atual=cmv_atual,
         margem_atual=margem_atual,
         margem_unitaria_original=margem_unit_original,
         incremental_mensal=INC,
         anual=ANO,
+        markup_operacao=_markup_operacao(
+            faturamento, faturamento_atual, cmv_refil, cmv_atual
+        ),
         traducao_fracao=e.aproveitamento_dianteiro,
         traseiro_na_conta=com_traseiro,
         tem_margem_da_original=com_margem_original,
@@ -322,6 +341,44 @@ def _faturamento_atual(e: Entradas) -> float | None:
     if originais is None or e.preco_original is None:
         return None
     return originais * e.preco_original
+
+
+def _cmv_atual(e: Entradas) -> float | None:
+    """Custo mensal da palheta original vendida hoje: Q_total x Ko."""
+    originais = _originais(e)
+    if originais is None or e.custo_original is None:
+        return None
+    return originais * e.custo_original
+
+
+def _markup_operacao(
+    faturamento_refil: float | None,
+    faturamento_atual: float | None,
+    cmv_refil: float | None,
+    cmv_atual: float | None,
+) -> float | None:
+    """Mark up da operacao INTEIRA: receita total / custo total (D21).
+
+    E adimensional — nao e margem e nao e percentual. O rotulo na tela nomeia a
+    conta feita ("faturamento / custo"), porque a §4 do DESIGN exige que todo
+    resultado financeiro diga qual conta ele e, e mark up NAO e margem de
+    contribuicao.
+
+    Devolve None, nunca um numero, quando falta qualquer parcela: um mark up de
+    1,0 significaria "vende ao preco de custo", que e uma afirmacao — e o app
+    nao afirma nada que nao foi informado. O divisor <= 0 tambem devolve None:
+    nao existe piso de preco (decisao F em aberto), portanto custo zero passa
+    pelos campos e dividir por ele nao produz numero exibivel.
+    """
+    partes = (faturamento_refil, faturamento_atual, cmv_refil, cmv_atual)
+    if any(parte is None for parte in partes):
+        return None
+
+    custo_total = cmv_refil + cmv_atual
+    if custo_total <= 0:
+        return None
+
+    return (faturamento_refil + faturamento_atual) / custo_total
 
 
 # ---------------------------------------------------------------------------

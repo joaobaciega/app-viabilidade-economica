@@ -507,8 +507,14 @@ def test_tipografia_do_resultado_vence_a_cascata_do_streamlit() -> None:
     """
     folha = (RAIZ / "src" / "css.py").read_text(encoding="utf-8")
 
+    # `st-traducao` saiu da folha em D21, junto com a tradução na tela. As
+    # tres classes novas dos cartoes de resultado entraram no lugar dela: sao
+    # elas que carregam os numeros que o cliente le a um metro agora.
     criticas = (
-        "st-traducao",
+        "st-cartao-rotulo",
+        "st-cartao-valor",
+        "st-cartao-apoio",
+        "st-acao-falta",
         "st-anual",
         "st-mensal",
         "st-rotulo-resultado",
@@ -789,9 +795,36 @@ def test_botoes_de_cenario_tem_96px() -> None:
 
 
 def test_alvos_de_toque_minimos() -> None:
-    """§3.4: minimo global 56px; polegar do slider >= 32px."""
+    """§3.4, divergido em D22: piso de 44px; polegar do slider >= 32px.
+
+    O DESIGN pedia "minimo global: 56px — acima dos 44px habituais,
+    deliberadamente". D22 desceu para 44px porque o cliente achou os campos
+    grandes demais, e 44px e onde a compactacao PARA:
+
+      - 44x44 CSS px e o piso de alvo de toque do WCAG 2.5.5 (AAA) e das
+        diretrizes de iOS e Android
+      - o mesmo pedido incluia portabilidade para celular, onde o piso vale
+        mais, nao menos
+
+    Este teste e o limite: quem quiser compactar mais tem de mexer aqui, e
+    encontrar este comentario antes.
+    """
+    from src import css
+
+    assert css.ALTURA_CAMPO >= 44, (
+        f"altura de campo {css.ALTURA_CAMPO}px abaixo do piso de alvo de toque "
+        f"(44px). Abaixo disso o dedo erra o campo no celular."
+    )
+
     folha = (RAIZ / "src" / "css.py").read_text(encoding="utf-8")
-    assert "height: 56px" in folha, "number_input precisa de 56px de altura"
+    assert "height: var(--altura-campo)" in folha, (
+        "o campo precisa usar o token de altura, para haver um lugar so onde "
+        "mexer nisso"
+    )
+    # E nenhuma media query pode rebaixar o campo no celular.
+    assert not re.search(r"--altura-campo:\s*(?:[0-3]?\d)px", folha), (
+        "algum lugar redefine --altura-campo abaixo de 40px"
+    )
     assert re.search(r'\[role="slider"\][^}]*height:\s*3[2-9]px', folha, re.S), (
         "o polegar do slider precisa de >= 32px"
     )

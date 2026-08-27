@@ -55,6 +55,7 @@ from src.calculo import (
     curvas_comparadas,
     traseiro_entra_na_conta,
 )
+from src.componentes import tabela
 from src.css import (
     GRADE,
     MARCA_VERMELHO,
@@ -395,7 +396,13 @@ def tabela_da_curva(e: Entradas, r: Resultado) -> None:
     "E o canal de reserva que substitui o tooltip que a stack nao tem." Mostra
     as MESMAS series do grafico: se o grafico tem duas linhas, a tabela tem as
     duas colunas, mais o incremental entre elas. Um gemeo que mostra menos que
-    o grafico deixa de ser gemeo.
+    o grafico deixa de ser gemeo — e era o caso do MARCADOR: o grafico desenha
+    um ponto vermelho na posicao corrente e a tabela nao tinha equivalente.
+    Agora a linha da posicao atual vem marcada (`destaque`).
+
+    A tabela e desenhada por `src/componentes/tabela.py`, nao por
+    `st.dataframe` — a canvas do dataframe nao aceita CSS e destoava do resto
+    da tela. O motivo esta na docstring do componente.
     """
     if r.anual is None:
         return
@@ -404,24 +411,65 @@ def tabela_da_curva(e: Entradas, r: Resultado) -> None:
     if not com_refil:
         return
 
-    colunas: dict[str, list[str]] = {
-        "Aproveitamento dianteiro": [f"{int(x)}%" for x, _ in com_refil],
-    }
+    atual_pp = int(round(e.aproveitamento_dianteiro * 100))
+    pontos = _com_a_posicao_atual(com_refil, atual_pp, base, r.anual)
 
     if base is not None:
-        colunas["Com refil (ano)"] = [
-            formato.moeda_agregada(y) for _, y in com_refil
+        colunas = [
+            "Aproveitamento dianteiro",
+            "Com refil (ano)",
+            "Só com a original (ano)",
+            "Diferença (incremental)",
         ]
-        colunas["Só com a original (ano)"] = [
-            formato.moeda_agregada(base) for _ in com_refil
-        ]
-        colunas["Diferença (incremental)"] = [
-            formato.moeda_agregada(y - base) for _, y in com_refil
+        linhas = [
+            [
+                f"{int(round(pp))}%",
+                formato.moeda_agregada(total),
+                formato.moeda_agregada(base),
+                formato.moeda_agregada(total - base),
+            ]
+            for pp, total in pontos
         ]
     else:
-        colunas["Margem do refil (ano)"] = [
-            formato.moeda_agregada(y) for _, y in com_refil
+        colunas = ["Aproveitamento dianteiro", "Margem do refil (ano)"]
+        linhas = [
+            [f"{int(round(pp))}%", formato.moeda_agregada(total)]
+            for pp, total in pontos
         ]
 
+    destaque = next(
+        (i for i, (pp, _) in enumerate(pontos) if int(round(pp)) == atual_pp),
+        None,
+    )
+
     with st.expander("Ver os números da curva", expanded=False):
-        st.dataframe(pd.DataFrame(colunas), hide_index=True, width="stretch")
+        tabela.tabela(
+            colunas=colunas,
+            linhas=linhas,
+            # A primeira coluna e o eixo; todas as demais sao dinheiro.
+            numericas=range(1, len(colunas)),
+            destaque=destaque,
+        )
+
+
+def _com_a_posicao_atual(
+    pontos: list[tuple[float, float]],
+    atual_pp: int,
+    base: float | None,
+    anual: float,
+) -> list[tuple[float, float]]:
+    """A curva de 5 em 5 pontos percentuais MAIS o ponto exato do cliente.
+
+    O gemeo so consegue marcar uma linha que exista. Com o slider em 23%, a
+    grade de 5 em 5 nao tem 23%, e marcar a linha de 20% seria marcar OUTRO
+    numero — pior do que nao marcar. Entao o ponto exato entra como linha
+    propria, na ordem, com o mesmo valor que o marcador do grafico mostra.
+    """
+    completos = [(float(pp), float(total)) for pp, total in pontos]
+
+    if all(int(round(pp)) != atual_pp for pp, _ in completos):
+        exato = anual if base is None else base + anual
+        completos.append((float(atual_pp), exato))
+        completos.sort(key=lambda par: par[0])
+
+    return completos

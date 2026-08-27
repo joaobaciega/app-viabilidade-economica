@@ -47,7 +47,12 @@ Regras que mantêm a intenção do P10 (todas verificadas em `src/icones.py`):
 4. **Nunca emoji** em área visível ao cliente. A única exceção é o glifo `⚠️` do
    `MarcadorDecisaoAberta`, que a §5.12 especifica literalmente.
 
-### D3 — Reordenação de coluna abaixo de 1024 px por CSS
+### D3 — Reordenação de coluna abaixo de 1024 px por CSS *(revogada por D21)*
+
+> **Revogada em 27/08/2026.** D21 acabou com as duas colunas, e sem duas colunas
+> não há reordenação a fazer. A regra de CSS e o container `corpo` de que ela
+> dependia saíram. O registro abaixo fica para rastreabilidade.
+
 
 | | |
 |---|---|
@@ -86,7 +91,13 @@ Regras que mantêm a intenção do P10 (todas verificadas em `src/icones.py`):
 | Por quê | Sem nenhuma profundidade os cartões ficam com aparência de recorte. A sombra é fraca o bastante para desaparecer sob luz forte, e o traço de 1px continua sustentando a borda sozinho — a degradação da §3.5 é preservada |
 | Limite testado | `test_sombra_e_gradiente_so_nos_lugares_declarados`: toda sombra vem de um token declarado, e não há gradiente fora dos três lugares autorizados |
 
-### D8 — Mais de seis campos na superfície primária
+### D8 — Mais de seis campos na superfície primária *(ampliada por D21)*
+
+> **Superada em 27/08/2026.** D21 dissolveu o expander "Ajustes avançados" e
+> levou os oito campos dele para a superfície primária: são dezessete controles
+> visíveis, não nove. A linha "o que continua fora" abaixo **está desatualizada**
+> — ver D21.5.
+
 
 | | |
 |---|---|
@@ -122,7 +133,13 @@ Esta é a mudança de **produto** desta rodada, não de estilo.
 | Sem o custo da original | Volta a **uma linha**, plotando o incremental. O app não inventa margem para a original |
 | Frase de apoio | Abaixo do gráfico, o cruzamento: "a partir de X% de aproveitamento o refil passa a render mais". Se não houver cruzamento na faixa, o app **diz que não há** em vez de sugerir que existe |
 
-### D11 — Aproveitamento traseiro na superfície primária
+### D11 — Aproveitamento traseiro na superfície primária *(mitigação alterada por D21)*
+
+> **Atenção em 27/08/2026.** O item (a) da mitigação abaixo — "ele vive na coluna
+> do vendedor, não na coluna que o cliente lê" — **deixou de existir**: D21
+> acabou com as duas colunas. E os valores mudaram de 7/10/13 para 5/10/18. O que
+> continua de pé está em D21.5.
+
 
 | | |
 |---|---|
@@ -228,6 +245,262 @@ porque ela troca uma pergunta desconfortável por uma premissa favorável.
 | A tensão que isso criou | O cabeçalho de `tela3_preco_original.py` fixa que o bloco "menos código na prateleira" fica **no topo, acima dos cartões**, porque é o argumento mais forte do produto (plano §2.5) e não pode virar nota de rodapé |
 | Como foi reconciliado | O bloco continua **acima dos cartões** — só passa a aparecer **junto** com eles, depois da escolha. As duas regras valem ao mesmo tempo, e nenhuma foi enfraquecida |
 | Travado por | `test_sem_marca_escolhida_nao_aparece_nada_alem_do_menu`, `test_o_menu_abre_vazio_com_as_18_marcas` |
+
+### D20 — Tabela própria, cabeçalho grudado, ritmo de seção e tiles de altura igual
+
+Rodada de acabamento pedida em 27/08/2026, tendo como referência de estrutura
+um simulador de juros compostos que o cliente enviou em prints. **Nada de
+conteúdo mudou:** nenhum número, nenhum rótulo, nenhum campo, nenhuma ordem de
+leitura. São quatro itens de forma, e cada um resolve um defeito que estava na
+tela.
+
+#### 1. A tabela deixou de ser `st.dataframe`
+
+| | |
+|---|---|
+| O que o DESIGN diz | §5.11 exige o **gêmeo em tabela** ("o canal de reserva que substitui o tooltip que a stack não tem") e que ele mostre **as mesmas séries do gráfico**. Não especifica widget |
+| O defeito | `st.dataframe` desenha numa `<canvas>`. Nenhuma regra da camada B pega nele, e as duas tabelas do app — a curva na Tela 1 e os modelos na Tela 2 — eram os **únicos objetos da tela** com cabeçalho, tipografia, alinhamento e cantos do framework, no meio de cartões próprios. Era exatamente o que o print de referência faz bem: lá a tabela é um objeto desenhado |
+| O que foi feito | `src/componentes/tabela.py` — uma `<table>` de verdade, estilizada na §15.1 de `css.py`: cabeçalho grudado no topo em `--superficie-3`, filete de 1px por linha, número à direita com `tabular-nums`, rolagem em 340px com barra fina |
+| O que isso **acrescentou** ao gêmeo | O **marcador da posição atual**. O gráfico desenha um ponto vermelho onde o cliente está; a tabela não tinha equivalente, e um gêmeo que mostra menos que o gráfico deixa de ser gêmeo. Agora a linha atual vem com fundo lavado e filete vermelho à esquerda — e, quando o aproveitamento não cai na grade de 5 em 5 (23%, por exemplo), **o ponto exato entra como linha própria** em vez de marcar o número errado |
+| Ganho de acessibilidade | Leitor de tela lê célula por célula com o cabeçalho associado (`scope="col"`), o cliente seleciona e copia, e o conteúdo sobrevive ao print e ao PDF do navegador. Nenhuma das três coisas acontece com uma canvas (§9) |
+| O que se perdeu | Ordenação por clique e redimensionamento de coluna. Nenhuma das duas era usada: as duas tabelas são curtas e já saem ordenadas pela grandeza que interessa |
+| Vermelho | Só fundo e filete do marcador. **Nenhum número vira vermelho** — §13.1 intacta |
+| Custo de reverter | Trocar duas chamadas de `tabela.tabela(...)` por `st.dataframe(...)` e apagar a §15.1 de `css.py` |
+| Efeito colateral registrado | `test_render_T4_traseiro_vazio_fica_fora_da_conta` busca valores **proibidos** no texto renderizado. A tabela varre o domínio inteiro do aproveitamento, e um ponto da varredura cai em `R$ 142.380` — o sentinela da derivação proibida do traseiro — com o resultado perfeitamente correto. As duas buscas por valor proibido passaram a rodar sobre o texto **sem a tabela da curva** (`_texto_sem_a_curva`), pelo mesmo motivo que elas já ignoravam a folha de estilo: ali o número é um ponto da curva, não a manchete. As buscas por valor **esperado** continuam sobre a tela inteira |
+
+#### 2. Cabeçalho grudado no topo
+
+| | |
+|---|---|
+| O defeito | A Tela 1 rola — resultado, premissas, tiles, gráfico, tabela, fórmula, PDF. Com o cabeçalho rolando junto, a navegação entre as três telas saía de alcance justamente quando o vendedor precisa dela: no meio da conversa, para conferir o preço da original |
+| O que foi feito | `position: sticky; top: 0` na faixa do cabeçalho |
+| Por que não é divergência de conteúdo | Nenhum pixel de altura novo, nenhum elemento novo: é o mesmo cabeçalho de 71px que a §6.1.3 já põe ali. Também não reintroduz chrome do framework — a barra do Streamlit continua oculta (§6.1.9) |
+| Reverter | Uma linha em `css.py`, seção 3 |
+
+#### 3. Ritmo das seções da coluna do vendedor
+
+| | |
+|---|---|
+| O defeito | `.st-secao` tinha 22px acima e 12px abaixo — quase simétrico. Um título simétrico flutua **entre** dois cartões em vez de encabeçar um, e a coluna lia como oito faixas alternadas em vez de quatro grupos com título |
+| O que foi feito | 28px acima, 9px abaixo. Proximidade passa a declarar o agrupamento |
+| Reverter | Um valor em `css.py`, seção 4 |
+
+#### 4. Tiles de KPI com altura igual
+
+| | |
+|---|---|
+| O defeito | Os quatro tiles são lidos como **uma linha**, e uma linha em que um cartão é 14px mais alto que o vizinho lê como descuido |
+| O que foi feito | `min-height: 96px`, coluna flex, e a nota grudada no rodapé do cartão (`margin-top: auto`) — as notas ficam na mesma altura mesmo quando um valor quebra em duas linhas |
+| Reverter | Três declarações em `css.py`, seção 10 |
+
+#### O que **não** foi feito, e por quê
+
+| Ideia do print de referência | Por que ficou fora |
+|---|---|
+| Prefixo `R$` / `%` colado à esquerda do campo | É o melhor empréstimo do print, e não foi feito porque não há gancho de DOM confiável para separar campo de moeda de campo de quantidade: `st.number_input` não expõe classe nem `data-testid` por tipo, e as alternativas eram um `st.container(key=...)` por campo (chave dinâmica, que o `test_ganchos_de_css_que_envolvem_filhos_usam_container_key` não consegue conferir) ou apagar a borda do `input` na esperança de que um seletor interno do BaseWeb exista — se ele mudar de nome, os campos ficam **sem borda**. Degradação inaceitável na camada B. A unidade continua no rótulo, como a §5.1 exige |
+| Dois campos por linha dentro do cartão | Os rótulos deste app são longos **de propósito** (§5.1, P6: rótulo ambíguo é defeito). Em metade da largura, "Preço ao consumidor final, por par (dianteiro)" quebra em quatro linhas — o cartão fica mais alto do que era com um campo por linha |
+| Um dos cartões de resultado preenchido de vermelho | No print é o "Valor total final". Aqui seria número financeiro sobre fundo vermelho, a dois passos do que a §13.1 proíbe — e a manchete já tem o cartão escuro, que dá mais contraste (17,9:1) do que qualquer preenchimento |
+| Legenda com quadradinhos de cor acima do gráfico | A §5.11 dispensa caixa de legenda de propósito, e as duas linhas já têm **rótulo direto** (D10). Rótulo direto identifica melhor e não gasta o espaço |
+
+### D21 — Modelo calculadora: campos primeiro, resultado por toque
+
+**É a maior divergência do projeto até aqui.** Pedida pelo cliente em 27/08/2026,
+tendo como referência um simulador de juros compostos que ele enviou em prints:
+a tela abre só com os campos, distribuídos pela largura toda; nada é calculado
+durante o preenchimento; um botão **Mostrar Resultado** habilita quando os
+obrigatórios estão preenchidos e revela o resultado abaixo, em três números.
+
+Ela contraria regras centrais do DESIGN v5 — não por efeito colateral, mas
+porque é isso que foi pedido. Cada choque está declarado abaixo, com o que se
+perdeu e o que foi preservado no lugar.
+
+#### 1. O faturamento virou manchete
+
+| | |
+|---|---|
+| O que o DESIGN diz | §4: "**Faturamento** — Só em linha secundária. **Nunca** como manchete — o resultado é lido em margem (§3.3 do plano)". E §4 exige que **todo** resultado financeiro seja rotulado "margem de contribuição" |
+| O que foi feito | Três cartões, nesta ordem: **Faturamento adicional**, **Margem de contribuição adicional**, **Mark up da operação** |
+| Consequência que precisa ficar dita | O gráfico plota **margem** adicional anual, e a §5.11 exige que "a curva plota exatamente a mesma grandeza da manchete… **se divergirem, a tela se contradiz na frente do cliente**". A regra passa a valer contra o **segundo** cartão. O título do gráfico continua dizendo qual grandeza está plotada, e a nota abaixo dos cartões diz "Valores anuais · margem de contribuição incremental · ano cheio em regime" |
+| Hierarquia | O primeiro cartão é o **escuro** (D6, 17,9:1) e o **maior** (48px contra 36px). Vermelho não foi usado: número financeiro sobre vermelho é a dois passos do que a §13.1 proíbe, e o cartão escuro dá mais contraste que qualquer preenchimento |
+| Travado por | `test_T1_ordem_dos_tres_cartoes_e_a_hierarquia` (ordem na fonte + razão 1,25×), `test_render_ordem_dos_tres_cartoes_no_artefato` (ordem no artefato), `test_render_resultado_negativo_sem_vermelho` (nenhuma cor inline nos cartões) |
+
+#### 2. A tradução em escala humana saiu da tela
+
+| | |
+|---|---|
+| O que o DESIGN diz | §5.5: "**A tradução em escala humana vem antes do valor anual.** … 'R$ 1,2 milhão por ano' é rejeitado pelo cérebro antes de ser avaliado; '3 a cada 10 carros que entram na oficina' é verificado pela intuição em dois segundos". Mais P2, §6.1.2, §6.1.9 ("o valor anual antes da tradução" está entre o que **nunca** aparece) e um item do checklist §12 |
+| O que foi feito | A tradução saiu da tela. Continua no **PDF**, no painel "De onde vêm esses números" e na faixa do vendedor |
+| O que se perdeu | O argumento que a §5.5 chama de "o requisito mais importante desta tela". O primeiro número que o cliente lê agora é em reais, sem a âncora de intuição antes dele |
+| O que foi preservado | A ordem de leitura do **documento** não mudou: no PDF a tradução continua abrindo a seção do resultado, antes do valor anual. `test_pdf_traducao_vem_antes_do_anual` continua verde e não foi tocado |
+
+#### 3. Resultado por toque explícito, e nada antes
+
+| | |
+|---|---|
+| Onde o DESIGN **apoia** | P11: "**nenhum recálculo que não seja disparado por toque explícito**". §7.1: "um recálculo por toque" |
+| Onde o DESIGN **contraria** | §5.11: "o cliente vê o intervalo completo **sem interagir**". §6.1.6: o estado E3 dispara por **preenchimento**, não por clique. §7.3: "o vazio desta tela **não é uma falha, é a abertura da conversa** … trate o texto de estado vazio como roteiro de pitch" |
+| O que se perdeu | **O roteiro de pitch do estado vazio.** "Quantas passagens por mês esta oficina recebe?" em 48px dentro do cartão de resultado deixou de existir; o vazio da tela agora é a própria área de campos |
+| Obrigatórios | passagens, palhetas vendidas/mês, preço da original, **custo da original**, preço e custo do dianteiro. O custo da original passou de opcional a obrigatório porque o mark up da operação inteira precisa dele — e, de lambuja, o rótulo do resultado parou de alternar entre "incremental" e "do refil" |
+| O traseiro continua OPCIONAL | Vazio ali significa "fora da conta" e é estado legítimo (§5.13). Exigi-lo travaria o vendedor quando o traseiro ainda não foi fechado, e mataria os casos T4 e T3b |
+| Nada bloqueia o CÁLCULO | §6.1.8: "um bloqueio na frente do cliente encerra a cena". O botão gateia a **exibição**; a plausibilidade continua avisando só na faixa do vendedor, sem impedir número nenhum. `test_render_aviso_de_plausibilidade_so_na_faixa` cobre isso |
+| Apagar um obrigatório | Esconde o resultado e desabilita o botão de novo. Sem isso, a tela ficaria com um número que a entrada atual não produz mais — pior do que não mostrar nada |
+| Botão desabilitado, sem cor semântica | Perde o preenchimento e ganha traço tracejado; o que falta é dito em texto discreto ("Falta preencher: …"). Sem `st.warning` (proibido) e sem vocabulário de alerta (§4) |
+| Caminho de volta | "Esconder resultado" volta à tela de campos **sem apagar nada** — é o oposto de `novo cliente`. Recomeça o pitch com o cenário montado |
+| Travado por | `test_render_estado_inicial_abre_so_com_os_campos`, `test_render_botao_habilita_quando_os_obrigatorios_estao_preenchidos`, `test_render_resultado_so_aparece_depois_do_toque`, `test_render_resultado_esconde_ao_apagar_um_obrigatorio`, `test_render_esconder_resultado_nao_apaga_campo` |
+
+#### 4. Fim das duas colunas — **D3 fica revogada**
+
+| | |
+|---|---|
+| O que o DESIGN diz | §3.3: "duas colunas via `st.columns([5, 7])` — **coluna esquerda (5/12)**, entradas, é o lado do vendedor / **coluna direita (7/12)**, cenário e resultado, é o lado que o cliente lê" |
+| O que foi feito | Uma coluna de campos em largura total, com 2 a 4 campos por linha dentro de cada cartão, e o resultado abaixo de tudo |
+| O que morre com isso | **D3 inteira** (a reordenação de coluna por CSS abaixo de 1024px): não há mais o que reordenar. O container `corpo` e a regra de CSS dele saíram |
+| O que precisa ser refeito | O argumento de **D6**: o cartão escuro era "~35% da coluna direita, cercado de superfície clara". Agora é 1/3 da largura de uma linha de três cartões — a área escura ficou **menor**, então o argumento contra o reflexo continua de pé, mas por outro motivo |
+
+#### 5. Os avançados na superfície primária — **D8 fica reescrita**
+
+| | |
+|---|---|
+| O que o DESIGN diz | §5.10: "Segurar o limite de campos editáveis visíveis. A planilha original tem ~30 células; num tablet, na frente do cliente, isso é morte." §6.1.4: "**exatamente seis** campos primários", com uma tabela do que ficou em Ajustes avançados "e por que cada um não merece o espaço" — e o aviso: "**sem esta tabela, o próximo a editar o documento simplesmente adiciona os campos de volta**" |
+| O que foi feito | O expander deixou de existir. Consultores, dias úteis e a grade 2×3 de cashback estão na superfície primária. A Tela 1 passou de nove para dezessete controles visíveis |
+| O que fica falso em D8 | A linha "o que continua fora — consultores, dias úteis, substituição, aproveitamento traseiro, comissão, imposto e cashback seguem em Ajustes avançados". Só substituição, comissão e imposto continuam fora, e por não existirem no modelo (D15, D16) |
+| O que da §5.10 **não** caiu | "Nenhum campo altera o resultado sem que a faixa de premissas reflita a mudança" — essa era a regra que importava, e ela continua valendo. A faixa de premissas subiu para o fim da área de campos e aparece **sempre**, antes de existir qualquer número |
+| Efeito em D11 | A mitigação declarada era "**(a)** ele vive na coluna do vendedor, não na coluna que o cliente lê". Com a coluna do vendedor abolida, o item (a) deixou de existir. Continuam de pé: os atalhos do traseiro são de 44px e não de 96, e o aproveitamento traseiro segue junto do preço e do custo da própria categoria, longe dos presets |
+| Correção de acessibilidade feita de passagem | Os seis campos de cashback tinham rótulo invisível "Dianteiro 0", "Dianteiro 1"… — índice de chave, não destinatário. Passaram a "Dianteiro · Consultor" (§9.6) |
+
+#### 6. Presets 10/40/70 e 5/10/18, os seis declarados medidos
+
+| | |
+|---|---|
+| O que foi feito | Dianteiro **10% / 40% / 70%** (era 20/30/40) e traseiro **5% / 10% / 18%** (era 7/10/13). Os seis declaram `carteira_medida` |
+| Quem afirmou | O cliente, em 27/08/2026, ao ser perguntado explicitamente: a legenda "Aproveitamento dianteiro medido em 15+ concessionárias da carteira Suicatech — não é estimativa" foi **mantida a pedido dele**, com a afirmação de que os novos números são dado medido |
+| O que o DESIGN e o plano registram | §10-H: "Derivados do dianteiro pela mesma proporção (0,67× e 1,33×) e **obrigatoriamente marcados `≈ derivado`**, nunca `◆ carteira`. **Só a linha realista (10%) é medida**". O plano §3.2 documenta 20/30/40 e 7/10/13, e o **risco nº 1** é "conversão do traseiro aplicada por analogia ao dianteiro… a projeção infla na metade nunca medida — e o erro só aparece no mês 3 do cliente" |
+| O que mudou na tela | A derivação proporcional deixou de existir, e com ela a marca `≈ derivado` e o texto "não medidos". `LEGENDA_PRESETS_TRASEIRO` passou a afirmar medição nas três faixas |
+| O que continua montado | O mecanismo de procedência (`Origem`, `marcador_procedencia`, a faixa de premissas). No dia em que um preset voltar a ser derivado, basta trocar o campo e a tela volta a marcá-lo — `test_decisao_H_todo_preset_declara_procedencia_coerente` reprova se um preset virar `derivado` sem a legenda mudar junto |
+| **Bloqueio técnico que isso causou** | 70% não caberia em `SLIDER_DOMINIO = (0, 60)`, e a validação **V5** levanta `ParametroInvalido` no import: **o app não subia**. O domínio subiu para **(0, 80)**, que é o mesmo valor do eixo X do gráfico (§5.4). `casos.json` T10 acompanhou |
+| Testes afetados | `test_decisao_H_derivacao_e_proporcional` foi **removido** (a proporção deixou de ser a regra) e `test_decisao_H_traseiro_extremos_sao_derivados` foi reescrito |
+
+#### 7. Mark up da operação — vocabulário novo
+
+| | |
+|---|---|
+| A conta | `(faturamento do refil + faturamento da original) ÷ (CMV do refil + CMV da original)`, mensal, adimensional. Exibido como `2,1×` |
+| Por que a operação inteira, e não só o refil | Decisão do cliente. É o mark up da operação que ele quer ver, não o do produto isolado |
+| Por que CMV é campo explícito em `Resultado` | Para o painel de fórmula poder mostrar a conta. Deduzir custo por `faturamento − margem` obrigaria o leitor a fazer a subtração de cabeça, e a §5.8 existe para o contrário |
+| Quando **não** aparece | Falta qualquer parcela, ou custo total zero → `None`, e o cartão declara o motivo. Um mark up de 1,0 significaria "vende ao preço de custo", que é uma afirmação que ninguém fez |
+| O que a §4 exige e como foi atendido | "Todo resultado financeiro é rotulado margem de contribuição". Mark up **não é** margem: o cartão diz `faturamento ÷ custo` embaixo do número, e o painel de fórmula diz "é adimensional — não é margem e não é percentual: é quantas vezes o preço cobre o custo" |
+| ⚠️ **Risco que fica em aberto** | Mark up na tela **entrega o custo de aquisição por inferência**: com o faturamento no cartão ao lado, uma divisão devolve o custo. O projeto trata custo como dado sensível — o PDF ganha marca d'água "DOCUMENTO INTERNO" quando o inclui, e o plano lista isso como risco 10. **Um número na tela do cliente não tem marca d'água.** Registrado aqui porque a decisão de exibir foi do cliente, e ela não é reversível depois da reunião |
+
+#### 8. Preço tabelado, não "caso a caso"
+
+| | |
+|---|---|
+| O que o cliente pediu | "tirar todas as menções que a negociação é caso a caso. falamos pro cliente que o preço é tabelado" |
+| Onde estava | `tela1_simulador.py` (título da seção e legenda do traseiro), `bloco_resultado.py` (estado vazio, que saiu junto), `exportador_pdf.py` (seção de preço e custo) e `campo_sensivel.py` (`LEGENDA_BLOCO`, módulo órfão) |
+| Nova redação | "Preço e custo vêm da tabela Suicatech vigente." O campo continua abrindo em branco, mas o motivo declarado deixa de ser negociação |
+| O que **não** mudou | Tela 3: "Seu preço nesta negociação" continua — ali "negociação" é o preço que a **concessionária** cobra pela palheta original e o escopo da sessão, não o preço tabelado da Suicatech |
+| Travado por | `test_render_legenda_do_campo_vazio_existe`, que agora proíbe "caso a caso" na tela |
+
+#### 9. Tiles de KPI removidos
+
+Eram acréscimo de D5 ("os números `ƒ calculado` que já existiam espalhados como
+legenda, reunidos numa grade legível"). O módulo `componentes/tiles_kpi.py` e as
+regras `st-key-kpis` e `st-kpi` saíram. As classes `.st-kpi-rotulo` e
+`.st-kpi-valor` **ficaram**: as Telas 2 e 3 e `cartao_preco_palheta.py` as usam
+sobre superfície clara.
+
+#### 10. Defeito de contraste corrigido de passagem
+
+`_bloco_menos_codigo` da Tela 3 usava `.st-mensal` — `color: var(--tinta-clara)`,
+branco — dentro de um `st.container(border=True)`, que é superfície branca. O
+texto "Palheta original: dezenas de códigos… cobrem 97% do mercado" era
+**branco sobre branco**, invisível; o bloco renderizava só a legenda. A docstring
+do próprio arquivo registrava a classe como "herdada da versão anterior desta
+tela e mantido como estava". Trocado por `.st-kpi-valor`, que é a classe que a
+mesma docstring manda usar. É o mesmo defeito que a §9 de `css.py` registra no
+cartão de resultado.
+
+#### O que ainda precisa de olho humano
+
+1. **O teste de um metro.** O item 1 do checklist manual fala de "os três números
+   do resultado" — que eram tradução/anual/mensal e agora são faturamento/margem/
+   mark up. Precisa ser refeito no tablet. `pytest` verde não basta: a §4.7 deste
+   documento registra que quatro dos seis defeitos desta construção passaram por
+   162 testes e só apareceram na medição pelo navegador.
+2. **Densidade.** Dezessete controles a 56px mais os presets de 96px na largura de
+   um tablet paisagem. Se estourar, o caminho é agrupar em mais cartões — nunca
+   reduzir altura de alvo (§3.4 é piso, não sugestão).
+3. **O mark up expondo o custo** (item 7 acima).
+
+### D22 — Campos compactados para 44 px, e o celular como alvo real
+
+Pedido do cliente em 27/08/2026, logo depois de D21: *"eu achei os campos muito
+grandes, não precisa ser assim. A parte de preenchimento está ocupando um espaço
+muito grande na tela… igual no exemplo do site da calculadora"*, com a ressalva
+de que *"o app tem que ter uma boa portabilidade para celulares"*.
+
+As duas coisas na mesma frase é o que define o limite: compactar até o piso de
+alvo de toque, e parar ali.
+
+#### O que mudou
+
+| | Antes | Agora |
+|---|---|---|
+| Altura de campo (`ALTURA_CAMPO`) | 56 px | **44 px** |
+| Texto do campo (`T_CAMPO`) | 20 px | **17 px** |
+| Rótulo do campo (`T_ROTULO`) | 17 px | **15 px** |
+| Margem do rótulo | ~8 px | 2 px |
+| Empilhamento dentro dos cartões | 0,6 rem | 0,3 rem |
+| Padding do cartão de campo | 12/16/14 px | 9/14/10 px |
+| Margem entre cartões | 14 px | 9 px |
+| Título de seção | 28 px acima, 9 abaixo | 17 acima, 6 abaixo |
+| Chip do total derivado | margem 6/14, padding 4/11 | margem 3/4, padding 2/9 |
+
+Estimativa: ~92 px por campo contra ~70 px, e algo entre 300 e 350 px menos na
+área de preenchimento — perto de um quarto dela. **É estimativa, não medição:**
+a altura real depende de quantos rótulos quebram em duas linhas na largura de
+cada coluna, e isso só o navegador responde.
+
+#### Onde a compactação PARA, e por quê
+
+| | |
+|---|---|
+| O que o DESIGN diz | §3.4: "**Mínimo global: 56px** — acima dos 44px habituais, deliberadamente" |
+| O que foi feito | 44 px — os "44 habituais" que a §3.4 cita para dizer que ficava acima deles |
+| Por que não menos | 44×44 CSS px é o piso de alvo de toque do **WCAG 2.5.5** e das diretrizes de **iOS e Android**. Abaixo disso o dedo erra o campo. E o mesmo pedido trouxe "boa portabilidade para celulares", onde esse piso vale mais, não menos |
+| O que **não** foi compactado | Os presets de cenário (96 px, 72 no celular) — são o protagonista da §5.3 e o maior alvo da tela; o polegar do slider (32 px, faixa de 48); o gráfico (300 px — reduzi-lo torna a curva ilegível, e é melhor rolar) |
+| Travado por | `test_alvos_de_toque_minimos`, reescrito: ele afirma `ALTURA_CAMPO >= 44`, exige que o campo use o token (um lugar só para mexer) e proíbe qualquer media query de rebaixar o token no celular |
+
+#### Celular (≤ 767 px) — o que passou a existir
+
+Antes deste item o único tratamento de celular era reduzir dois tokens de
+tipografia. Agora:
+
+- **Padding da página** cai de 28 px para 14 px de cada lado — 28 px custam 14%
+  da largura de um aparelho de 390 px.
+- **O cabeçalho empilha**: marca em cima, navegação embaixo, pílulas podendo
+  quebrar em duas linhas. Lado a lado a 390 px o logo e as três pílulas não
+  cabem, e a navegação seria cortada — ela é o **único** caminho para as Telas 2
+  e 3, porque a barra lateral do Streamlit está oculta (§6.1.9).
+- **A grade de cashback continua em linha** em qualquer largura. Empilhada, o
+  cabeçalho de coluna ("Consultor", "Gerente", "Marketing") deixa de encabeçar
+  nada e os seis campos ficam sem rótulo visível: a grade viraria seis caixas
+  anônimas. A 390 px ela fica apertada — quatro colunas de ~85 px — e isso é o
+  compromisso escolhido.
+- **A reserva de 118 px à direita na faixa do vendedor** para o botão `novo
+  cliente` não cobrir o texto de procedência (§5.9).
+- **Tipografia do cliente** um passo abaixo, incluindo `--t-mensal` a 20 px. O
+  piso de 22 px da §3.2 foi derivado de "legível a 100 cm, sob luz forte" — a
+  cena do tablet sobre a mesa. Um celular é lido a 30–40 cm, e a mesma conta
+  que pedia 22 px a um metro pede menos da metade a 40 cm. A folha já fazia
+  isso com a tradução e o valor anual desde a §8 original.
+
+#### O que precisa de olho humano
+
+O item 3 do checklist manual (reteste visual dos itens 🔧) precisa rodar em três
+larguras, não em uma: **1366×1024**, **1180×820** e **390×844**. O que eu não
+consigo verificar daqui é quantos rótulos quebram em duas linhas em cada
+largura — é isso que decide se a compactação entregou o que promete.
 
 ### D4 — Vermelho não é usado em filete de seção *(revogada por D5)*
 

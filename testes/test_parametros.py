@@ -122,22 +122,34 @@ def test_decisao_G_sem_numero_de_codigos() -> None:
     )
 
 
-def test_decisao_H_traseiro_extremos_sao_derivados() -> None:
-    """So a linha realista foi medida. Os extremos NUNCA saem como carteira."""
-    por_nome = {p.nome: p for p in P.PRESETS}
-    assert por_nome["realista"].origem_traseiro == "carteira_medida"
-    assert por_nome["pessimista"].origem_traseiro == "derivado"
-    assert por_nome["otimista"].origem_traseiro == "derivado"
+def test_decisao_H_todo_preset_declara_procedencia_coerente() -> None:
+    """D21 substituiu a decisao H: as seis faixas sao declaradas MEDIDAS.
 
+    O que este teste travava antes: so a linha realista do traseiro (10%) era
+    medida, e os extremos (7% e 13%) eram derivados do dianteiro pela mesma
+    proporcao — obrigatoriamente marcados `≈ derivado`, nunca `◆ carteira`,
+    porque apresentar derivacao com autoridade de medicao e o risco n. 1 do
+    plano. Em 27/08/2026 o cliente informou que os seis valores (dianteiro
+    10/40/70 e traseiro 5/10/18) sao dado medido na carteira, e a derivacao
+    proporcional deixou de existir.
 
-def test_decisao_H_derivacao_e_proporcional() -> None:
-    """0,67x e 1,33x do dianteiro (plano §3.2)."""
-    por_nome = {p.nome: p for p in P.PRESETS}
-    realista = por_nome["realista"]
-    assert por_nome["pessimista"].traseiro == pytest.approx(
-        realista.traseiro * (por_nome["pessimista"].dianteiro / realista.dianteiro),
-        abs=0.005,
-    )
+    O QUE CONTINUA TRAVADO, e e o que importa: nenhum preset pode ficar sem
+    procedencia declarada, e o mecanismo de distincao continua vivo — se algum
+    dia um preset voltar a ser derivado, `Origem` aceita `derivado` e a tela
+    volta a marca-lo. V1 cobre a validade do campo; aqui garantimos a
+    COERENCIA com a legenda que a tela exibe.
+    """
+    for preset in P.PRESETS:
+        assert preset.origem_dianteiro == "carteira_medida", preset.nome
+        assert preset.origem_traseiro == "carteira_medida", preset.nome
+
+    # A legenda na tela afirma medicao nas duas categorias. Se alguem voltar um
+    # preset para `derivado` sem trocar a legenda, o app passa a vender
+    # derivacao como medicao — e e exatamente isso que este par de asserts
+    # impede que aconteca em silencio.
+    assert "medido" in P.LEGENDA_PRESETS_DIANTEIRO
+    assert "medido" in P.LEGENDA_PRESETS_TRASEIRO
+    assert "derivado" not in P.LEGENDA_PRESETS_TRASEIRO
 
 
 def test_decisoes_I_e_J_desligadas_e_declaradas() -> None:
