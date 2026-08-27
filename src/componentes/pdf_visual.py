@@ -245,6 +245,69 @@ def linha_de_kpis(
     return y + altura
 
 
+def manchete_dupla(
+    doc: FPDF,
+    x: float,
+    y: float,
+    largura: float,
+    altura: float,
+    esquerda: KPI,
+    direita: KPI,
+) -> float:
+    """DOIS numeros do mesmo tamanho, lado a lado, na faixa escura de abertura.
+
+    E a primeira coisa da pagina 1 e a maior coisa do documento (D26). Os dois
+    tem o MESMO corpo de fonte, e nao um maior que o outro: o pedido foi "lado a
+    lado, de forma bem grande e evidente", e hierarquizar um sobre o outro aqui
+    responderia uma pergunta que ninguem fez.
+
+    O CORPO E COMUM AOS DOIS, medido pelo que couber no MAIS LARGO. Ajustar cada
+    um por conta propria faria "R$ 7.694.784" sair menor que "R$ 141.480" ao
+    lado — e, em dois numeros pareados, tamanho diferente lê como importancia
+    diferente, que e o contrario do que este desenho afirma.
+
+    Escura pela mesma razao do primeiro cartao da tela (D6): branco sobre
+    #141414 da 17,9:1, mais contraste do que preto sobre branco tinha, e o
+    destaque nao precisa de preenchimento vermelho — que leria como alerta e
+    fica a dois passos do que a §13.1 proibe.
+    """
+    cartao(doc, x, y, largura, altura, fundo=SUPERFICIE_ESCURA)
+
+    interno = 7.0
+    meio = x + largura / 2
+    coluna = largura / 2 - interno * 1.5
+
+    doc.set_draw_color(TINTA_SECUNDARIA)
+    doc.set_line_width(0.3)
+    doc.line(meio, y + 6, meio, y + altura - 6)
+
+    corpo = min(
+        _fonte_que_cabe(doc, esquerda.valor or "", coluna, maximo=32, minimo=13),
+        _fonte_que_cabe(doc, direita.valor or "", coluna, maximo=32, minimo=13),
+    )
+
+    for dado, dx in ((esquerda, x + interno), (direita, meio + interno)):
+        doc.set_xy(dx, y + interno - 1.5)
+        doc.set_font("Helvetica", "B", 7)
+        doc.set_text_color(TINTA_CLARA_2)
+        doc.set_char_spacing(0.5)
+        doc.multi_cell(coluna, 3.6, texto(dado.rotulo.upper()), align="L")
+        doc.set_char_spacing(0)
+
+        if dado.valor is not None:
+            doc.set_font("Helvetica", "B", corpo)
+            doc.set_text_color(TINTA_CLARA)
+            doc.set_xy(dx, y + altura - interno - 5 - corpo * 0.36)
+            doc.cell(coluna, corpo * 0.36, texto(dado.valor))
+
+        doc.set_font("Helvetica", "", 8.5)
+        doc.set_text_color(TINTA_CLARA_2)
+        doc.set_xy(dx, y + altura - interno - 4)
+        doc.cell(coluna, 4, texto(dado.apoio))
+
+    return y + altura
+
+
 # ---------------------------------------------------------------------------
 # Barras: hoje x com o refil
 # ---------------------------------------------------------------------------

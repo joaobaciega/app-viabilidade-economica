@@ -140,10 +140,48 @@ def test_pdf_declara_que_nao_ha_canibalizacao() -> None:
     assert "venda nova" in texto
 
 
-def test_pdf_traducao_vem_antes_do_anual() -> None:
-    """§5.5 — a ordem de leitura vale no documento tambem."""
+def test_pdf_faturamento_e_margem_abrem_o_documento() -> None:
+    """D26 — a ordem de leitura do documento, INVERTIDA a pedido do cliente.
+
+    SUBSTITUI `test_pdf_traducao_vem_antes_do_anual`, que exigia o contrario:
+    `texto.index("3 a cada 10") < texto.index("141.480")`, por §5.5 e P2 — "R$
+    141.480 por ano" e rejeitado pelo cerebro antes de ser avaliado, enquanto
+    "3 a cada 10 carros que entram" e conferido pela intuicao em dois segundos.
+
+    O cliente pediu em 27/08/2026 que faturamento e margem adicional abrissem o
+    PDF, lado a lado e no maior corpo da folha. A tela ja tinha invertido isso
+    em D21; o documento era o ultimo lugar onde a ordem original sobrevivia.
+
+    O que este teste trava no lugar:
+      1. os DOIS numeros abrem o documento, e nessa ordem — faturamento antes
+         de margem, a mesma dos cartoes da tela (D21, normativa)
+      2. a traducao CONTINUA no documento. Ela desceu de posicao, nao saiu: o
+         PDF e o unico lugar em que ela ainda existe
+      3. cada um dos dois diz QUAL CONTA ele e (§4). Dois numeros do mesmo
+         tamanho lado a lado sem rotulo proprio seriam intercambiaveis
+    """
     texto = _texto_do_pdf(_pdf())
-    assert texto.index("3 a cada 10") < texto.index("141.480")
+
+    fim_da_manchete = texto.index("141.480")
+    assert texto.index("249.372") < fim_da_manchete, (
+        "faturamento adicional abre o documento, antes da margem"
+    )
+    assert fim_da_manchete < texto.index("3 a cada 10"), (
+        "a tradução desceu para os cartões de apoio (D26)"
+    )
+
+    # A tradução continua no documento — inteira, não só a forma curta.
+    assert "3 a cada 10" in texto
+    assert "carros que entram" in texto
+
+    # E cada número da manchete nomeia a conta que ele é — em versalete, que é
+    # como o rótulo é desenhado.
+    assert texto.index("FATURAMENTO ADICIONAL") < texto.index("249.372")
+    assert (
+        texto.index("249.372")
+        < texto.index("MARGEM DE CONTRIBUIÇÃO ADICIONAL")
+        < fim_da_manchete
+    )
 
 
 def test_pdf_com_nome_do_cliente() -> None:

@@ -403,141 +403,121 @@ def _abertura_sem_resultado(doc: _Documento, r: Resultado) -> None:
 
 
 def _pagina_de_relance(doc: _Documento, e: Entradas, r: Resultado) -> None:
-    """Manchete, cartoes, barras e cenarios — nesta ordem, e ela e normativa.
+    """Manchete, apoio, barras e cenarios — nesta ordem, e ela e normativa.
 
-    A TRADUCAO VEM PRIMEIRO, dentro da faixa escura, e o valor anual so aparece
-    depois dela (§5.5, P2): "R$ 141.480 por ano" e rejeitado pelo cerebro antes
-    de ser avaliado, enquanto "3 a cada 10 carros que entram" e conferido pela
-    intuicao em dois segundos. `test_pdf_traducao_vem_antes_do_anual` le a ordem
-    no fluxo de conteudo do PDF, e nao no codigo — reordenar estas chamadas
-    reprova.
+    A ORDEM MUDOU EM D26, a pedido do cliente: FATURAMENTO E MARGEM ADICIONAL
+    abrem o documento, lado a lado, no maior corpo da folha. A traducao em
+    escala humana desceu para os cartoes de apoio.
+
+    O que isso contraria, e que precisa ficar dito: a §5.5 e o P2 mandavam a
+    traducao vir primeiro e maior, porque "R$ 141.480 por ano" e rejeitado pelo
+    cerebro antes de ser avaliado enquanto "3 a cada 10 carros que entram" e
+    conferido pela intuicao em dois segundos. A tela ja tinha invertido isso em
+    D21; o documento era o ultimo lugar onde a ordem original sobrevivia.
+
+    `test_pdf_faturamento_e_margem_abrem_o_documento` le a ordem no FLUXO DE
+    CONTEUDO do PDF, e nao no codigo — reordenar estas chamadas reprova.
     """
-    _faixa_manchete(doc, r)
+    _manchete(doc, r)
+    _nota_do_grupo(doc, r)
     doc.ln(4)
-    _cartoes(doc, r)
+    _cartoes_de_apoio(doc, r)
     doc.ln(6)
     _barras(doc, r)
     _cenarios(doc, e, r)
     _cashback(doc, r)
 
 
-def _faixa_manchete(doc: _Documento, r: Resultado) -> None:
-    """A faixa escura: a traducao a esquerda, o contraste do mes a direita.
+def _manchete(doc: _Documento, r: Resultado) -> None:
+    """A faixa escura de abertura: os DOIS numeros, lado a lado (D26).
 
-    Escura pela mesma razao do primeiro cartao da tela (D6): branco sobre
-    #141414 da 17,9:1, mais contraste do que preto sobre branco tinha, e o
-    destaque nao precisa de preenchimento vermelho — que leria como alerta.
-    """
-    x, y = _MARGEM_X, doc.get_y()
-    altura = 33.0
-    visual.cartao(doc, x, y, _LARGURA, altura, fundo=SUPERFICIE_ESCURA)
+    Faturamento adicional a esquerda, margem de contribuicao adicional a
+    direita, no MESMO corpo — a ordem dos dois primeiros cartoes da tela (D21,
+    normativa). O documento e a lembranca da tela: inverter aqui faria o cliente
+    procurar no papel o numero que ficou noutro lugar.
 
-    esquerda = _LARGURA * 0.56
-    interno = 6.0
-
-    # --- a traducao, primeiro no fluxo de conteudo ------------------------
-    doc.set_xy(x + interno, y + interno - 1)
-    doc.set_font("Helvetica", "B", 6.5)
-    doc.set_text_color(TINTA_CLARA_2)
-    doc.set_char_spacing(0.5)
-    doc.cell(esquerda - interno, 3.4, _t("O QUE ISSO SIGNIFICA NA OFICINA"))
-    doc.set_char_spacing(0)
-
-    traducao = formato.traducao_por_passagem(r.traducao_fracao)
-    corpo = visual._fonte_que_cabe(
-        doc, traducao, esquerda - interno * 1.5, maximo=15, minimo=9
-    )
-    doc.set_text_color(TINTA_CLARA)
-    doc.set_xy(x + interno, y + interno + 5)
-    doc.multi_cell(esquerda - interno, corpo * 0.42, _t(traducao), align="L")
-
-    # --- o contraste do mes, a direita ------------------------------------
-    dx = x + esquerda
-    doc.set_draw_color(TINTA_SECUNDARIA)
-    doc.set_line_width(0.3)
-    doc.line(dx, y + 5, dx, y + altura - 5)
-
-    doc.set_xy(dx + interno, y + interno - 1)
-    doc.set_font("Helvetica", "B", 6.5)
-    doc.set_text_color(TINTA_CLARA_2)
-    doc.set_char_spacing(0.5)
-    doc.cell(_LARGURA - esquerda - interno, 3.4, _t("MARGEM COM PALHETAS, POR MÊS"))
-    doc.set_char_spacing(0)
-
-    if r.margem_atual is not None and r.incremental_mensal is not None:
-        # "hoje X > com o refil Y" — o contraste que ancora o resultado, o mesmo
-        # de `_hoje_versus_refil` na tela. So aparece com margem da original
-        # para comparar: sem o custo dela nao existe margem dela, e comparar
-        # margem com faturamento misturaria grandezas (§6.1.5).
-        total = r.margem_atual + r.incremental_mensal
-        doc.set_xy(dx + interno, y + interno + 4)
-        doc.set_font("Helvetica", "", 8)
-        doc.set_text_color(TINTA_CLARA_2)
-        doc.cell(
-            _LARGURA - esquerda - interno,
-            4.5,
-            _t(f"hoje {formato.moeda_agregada(r.margem_atual)}"),
-        )
-        doc.set_xy(dx + interno, y + interno + 8.5)
-        doc.set_font("Helvetica", "B", 15)
-        doc.set_text_color(TINTA_CLARA)
-        doc.cell(
-            _LARGURA - esquerda - interno,
-            7,
-            _t(f"→ {formato.moeda_agregada(total)}"),
-        )
-        # Logo abaixo do valor, e nao no rodape do cartao: as tres linhas sao
-        # UMA frase ("hoje X, adotando o refil Y"), e separa-las por um vao de
-        # 10 mm faria a ultima parecer legenda do cartao inteiro.
-        doc.set_xy(dx + interno, y + interno + 15.5)
-        doc.set_font("Helvetica", "", 7)
-        doc.set_text_color(TINTA_CLARA_2)
-        doc.cell(_LARGURA - esquerda - interno, 3.4, _t("adotando o refil"))
-    else:
-        doc.set_xy(dx + interno, y + interno + 6)
-        doc.set_font("Helvetica", "", 8)
-        doc.set_text_color(TINTA_CLARA_2)
-        doc.multi_cell(
-            _LARGURA - esquerda - interno * 1.5,
-            4,
-            _t(
-                "Custo da palheta original não informado — sem margem dela "
-                "para comparar."
-            ),
-            align="L",
-        )
-
-    doc.set_y(y + altura)
-
-
-def _cartoes(doc: _Documento, r: Resultado) -> None:
-    """OS TRES CARTOES DA TELA, na MESMA ORDEM (D21, normativa).
-
-    Faturamento adicional, margem de contribuicao adicional, mark up da
-    operacao. O documento e a lembranca da tela: trocar a ordem aqui faria o
-    cliente procurar no papel o numero que ficou noutro lugar.
-
-    O primeiro e o escuro, como na tela — e nenhum dos tres e vermelho.
+    A GRANDEZA DE CADA UM VAI NO ROTULO, e nao so na nota de rodape do grupo:
+    sao duas contas diferentes no mesmo tamanho, e a §4 exige que todo resultado
+    financeiro diga qual conta ele e. "Faturamento" nao e "margem".
     """
     faturamento_mensal = r.faturamento_refil or 0.0
 
-    cartoes = [
+    y = visual.manchete_dupla(
+        doc,
+        _MARGEM_X,
+        doc.get_y(),
+        _LARGURA,
+        38.0,
         visual.KPI(
             "Faturamento adicional",
             formato.moeda_agregada(faturamento_mensal * MESES_NO_ANO),
             f"{formato.moeda_agregada(faturamento_mensal)} por mês",
-            principal=True,
         ),
         visual.KPI(
             "Margem de contribuição adicional",
             formato.moeda_agregada(r.anual or 0.0),
             f"{formato.moeda_agregada(r.incremental_mensal or 0.0)} por mês",
         ),
+    )
+    doc.set_y(y + 1.5)
+
+
+def _cartoes_de_apoio(doc: _Documento, r: Resultado) -> None:
+    """Os tres que sobraram da abertura: mark up, traducao e o contraste do mes.
+
+    A TRADUCAO MORA AQUI DESDE D26. Ela nao saiu do documento — sairia do unico
+    lugar em que ainda existe, porque D21 ja a tinha tirado da tela. O que ela
+    perdeu foi a posicao de abertura e o corpo de 15pt; o que ela mantem e a
+    forma curta ("3 a cada 10") no lugar do numero e a frase inteira embaixo,
+    que e como o cartao de KPI e construido.
+    """
+    cartoes = [
         _cartao_markup(r),
+        visual.KPI(
+            "O que isso significa na oficina",
+            formato.traducao_curta(r.traducao_fracao),
+            "carros que entram viram um par de refil",
+        ),
+        _cartao_hoje_versus_refil(r),
     ]
 
-    y = visual.linha_de_kpis(doc, _MARGEM_X, doc.get_y(), _LARGURA, 29.0, cartoes)
-    doc.set_y(y + 1.5)
+    y = visual.linha_de_kpis(doc, _MARGEM_X, doc.get_y(), _LARGURA, 26.0, cartoes)
+    doc.set_y(y)
+
+
+def _cartao_hoje_versus_refil(r: Resultado) -> visual.KPI:
+    """"hoje X -> com o refil Y" — o contraste que ancora o resultado.
+
+    So aparece com margem da original para comparar. Sem o custo dela nao existe
+    margem dela, e comparar margem com faturamento misturaria grandezas
+    (§6.1.5) — o cartao entao declara o motivo, e nao um numero.
+    """
+    if r.margem_atual is None or r.incremental_mensal is None:
+        return visual.KPI(
+            "Margem com palhetas, por mês",
+            None,
+            "custo da original não informado",
+        )
+    # A SETA FICA NA LINHA DE APOIO, entre os dois estados, e nao colada no
+    # numero grande: "-> R$ 15.570" sozinho no lugar do valor parece um valor
+    # com um simbolo perdido na frente. Embaixo ela separa o antes do depois,
+    # que e a leitura de `_hoje_versus_refil` na tela.
+    total = r.margem_atual + r.incremental_mensal
+    return visual.KPI(
+        "Margem com palhetas, por mês",
+        formato.moeda_agregada(total),
+        f"hoje {formato.moeda_agregada(r.margem_atual)} → adotando o refil",
+    )
+
+
+def _nota_do_grupo(doc: _Documento, r: Resultado) -> None:
+    """Qual periodo e qual conta, logo abaixo da manchete.
+
+    "Valores anuais" nao e enfeite: os dois numeros grandes sao de 12 meses e o
+    apoio de cada um e mensal. Sem a nota, os dois se confundem — e a §4 exige
+    que todo resultado financeiro diga qual conta ele e.
+    """
+    doc.set_x(_MARGEM_X)
     doc.set_font("Helvetica", "", 7.5)
     doc.set_text_color(TINTA_DISCRETA)
     doc.cell(

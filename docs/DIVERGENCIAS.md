@@ -593,7 +593,7 @@ O documento era uma lista de `rótulo … valor` em duas colunas, da primeira li
 
 | | Conteúdo | Para quê |
 |---|---|---|
-| **Página 1** | faixa escura com a tradução em escala humana + o contraste do mês; os **três cartões da tela**; barras **hoje × com o refil**; os **três cenários** medidos; a linha de cashback | a leitura de relance |
+| **Página 1** | faixa escura de abertura; cartões de apoio; barras **hoje × com o refil**; os **três cenários** medidos; a linha de cashback | a leitura de relance |
 | **Página 2** | a **curva de sensibilidade** inteira com marcador, as premissas, preço e custo de tabela (só em documento interno) e o que ainda não foi decidido | a auditoria |
 
 #### A tensão que este item resolve, e como
@@ -684,6 +684,51 @@ a deixa atrás do conteúdo.
 `test_pdf_incremental_negativo_sai_com_sinal_e_sem_promessa`,
 `test_T14_moeda_curta_espelha_o_eixo_da_tela` e
 `test_T14_abreviacao_de_moeda_e_so_para_eixo`.
+
+### D26 — O PDF abre pelos dois números, e a tradução desce
+
+Pedido do cliente em 27/08/2026, logo depois de D24: *"no PDF, a primeira coisa
+que deve aparecer em evidência máxima é o faturamento e a margem de contribuição
+adicional, lado a lado, de forma bem grande e evidente. Rearranje de modo que o
+faturamento adicional fique aonde agora está o 'o que isso significa na
+oficina'."*
+
+#### O que mudou
+
+| | D24 | Agora |
+|---|---|---|
+| Faixa escura de abertura | tradução à esquerda, contraste do mês à direita | **faturamento adicional \| margem de contribuição adicional**, lado a lado, mesmo corpo |
+| Corpo do número de abertura | 15 pt (a tradução) | **até 32 pt**, o maior da folha |
+| Os três cartões da tela | linha própria, abaixo da faixa | os dois primeiros **subiram para a faixa**; sobrou o mark up |
+| Tradução em escala humana | abertura, 15 pt | cartão de apoio: `3 a cada 10` + `carros que entram viram um par de refil` |
+| Contraste `hoje → com o refil` | metade direita da faixa | cartão de apoio |
+
+A linha de cartões de apoio ficou com três: **mark up da operação**, **o que
+isso significa na oficina** e **margem com palhetas, por mês**.
+
+#### O que isso contraria, e por que foi feito assim mesmo
+
+| | |
+|---|---|
+| O que o DESIGN diz | §5.5 e P2: a tradução vem **primeiro e maior**. "R$ 1,2 milhão por ano" é rejeitado pelo cérebro antes de ser avaliado; "3 a cada 10 carros que entram" é conferido pela intuição em dois segundos |
+| Onde a regra já tinha caído | Na tela, em **D21.2** — a tradução saiu da Tela 1 por completo. O PDF era o **último lugar** em que a ordem original da §5.5 sobrevivia |
+| O que se perde | O documento passa a abrir por um número que o cérebro rejeita antes de avaliar. A mitigação é que a tradução **não saiu**: ela está a 4 cm abaixo, na mesma página, e o PDF continua sendo o único lugar em que ela existe |
+| Travado por | `test_pdf_faturamento_e_margem_abrem_o_documento`, que **substitui** `test_pdf_traducao_vem_antes_do_anual`. O novo lê a ordem no fluxo de conteúdo do PDF e exige as três coisas: os dois números abrem, o faturamento vem antes da margem (ordem de D21), e a tradução continua presente |
+
+#### Os dois números têm o mesmo corpo, e isso é decisão
+
+O corpo é calculado **uma vez, pelo mais largo dos dois**, e aplicado aos dois.
+Ajustar cada um por conta própria faria `R$ 7.694.784` sair menor que
+`R$ 141.480` ao lado — e, em dois números pareados, **tamanho diferente lê como
+importância diferente**, que é o contrário do que este desenho afirma.
+
+Pelo mesmo motivo cada um carrega o **próprio rótulo** na faixa, e não só a nota
+de rodapé do grupo: são duas contas diferentes no mesmo tamanho, e a §4 exige que
+todo resultado financeiro diga qual conta ele é. "Faturamento" não é "margem".
+
+Nenhum dos dois é vermelho — a faixa é escura (D6, 17,9:1), e com margem
+**negativa** o número sai branco, com o sinal, ao lado de um faturamento
+positivo do mesmo tamanho. §13.1 intacta.
 
 ### D25 — Lockup novo: `assets/logo.jpeg`, dois andares, `INTRACE Br`
 
