@@ -582,6 +582,109 @@ o empilhamento abaixo de 768 px),
 `test_render_exportar_pdf_so_com_o_resultado_na_tela`,
 `test_pdf_nome_do_arquivo_*` e `test_venda_da_unidade_concorda_com_a_unidade_declarada`.
 
+### D24 — O PDF virou documento visual, sem virar folheto
+
+Pedido do cliente em 27/08/2026: *"o PDF tem que ser mais visual. Use os cards
+de KPI, gráficos, faça cenários. Deve ser algo que o cliente bata o olho e fique
+evidente que é um bom negócio."*
+
+O documento era uma lista de `rótulo … valor` em duas colunas, da primeira linha
+à última. Passou a ter **duas páginas com papéis distintos**:
+
+| | Conteúdo | Para quê |
+|---|---|---|
+| **Página 1** | faixa escura com a tradução em escala humana + o contraste do mês; os **três cartões da tela**; barras **hoje × com o refil**; os **três cenários** medidos; a linha de cashback | a leitura de relance |
+| **Página 2** | a **curva de sensibilidade** inteira com marcador, as premissas, preço e custo de tabela (só em documento interno) e o que ainda não foi decidido | a auditoria |
+
+#### A tensão que este item resolve, e como
+
+"Bata o olho e fique evidente que é um bom negócio" é um **pedido de persuasão**,
+e a §4 é dura a respeito: o app não promete, e a §12 reprova "ROI", "retorno
+garantido" e "estimativa" ao lado de número medido. A leitura de relance ficou
+mais forte **pelo desenho** — hierarquia, contraste, uma grandeza por elemento —
+e não por adjetivo. Nenhuma palavra de venda entrou; `test_pdf_cenarios_nao_prometem`
+varre o documento inteiro atrás delas.
+
+O que sustenta a decisão de que isso não vira folheto:
+
+- **O cenário PESSIMISTA entra na página 1, do mesmo tamanho dos outros dois.**
+  Um documento que mostrasse só o cenário favorável seria material de venda; a
+  faixa inteira é o que deixa o gerente escolher em qual acreditar. Com o T1, a
+  faixa vai de R$ 50.400 a R$ 319.752 — e o pessimista fica impresso.
+- **As barras são empilhadas, não justapostas.** Duas barras soltas convidam a
+  ler "de X para Y" como *substituição*, e substituição é exatamente o que a
+  premissa `CANIBALIZACAO_MODELADA = False` **não** afirma. A base repetida diz,
+  no desenho, que nada foi trocado — e o parágrafo abaixo repete em palavras.
+- **Nenhum número de resultado é vermelho** (§13.1). O vermelho é marca de
+  gráfico: o segmento da barra, o marcador da curva e a anotação do vão — os
+  mesmos usos que `grafico_sensibilidade.py` já faz na tela. Travado por
+  `test_pdf_nenhum_numero_de_resultado_em_vermelho`, que lê a função `kpi` por
+  AST em vez de procurar a cor no arquivo (onde ela é legítima).
+- **Margem negativa continua saindo.** Com custo acima do preço, a segunda barra
+  fica **mais baixa** que a primeira e o vão que falta aparece em contorno
+  tracejado, com o valor em tinta primária e o sinal — nunca em vermelho, nunca
+  escondido. O plano §1.1 avisa que isso é possível.
+- **Sem valor anual não existe página 1.** O documento abre dizendo o que falta,
+  e não com cartões de R$ 0 (P9, §6.1.9).
+
+#### Desenhado à mão, sem matplotlib
+
+Cartões, barras e curva são retângulo e linha vetoriais do próprio `fpdf2`, num
+módulo novo — `src/componentes/pdf_visual.py`. Três razões, nesta ordem:
+
+1. `requirements.txt` instala **exatamente** o que o app importa, e
+   `test_runtime_nao_carrega_dependencia_de_desenvolvimento` reprova o contrário.
+   matplotlib são ~30 MB no Community Cloud, que hiberna após 12 h e precisa
+   **acordar** antes de o cliente olhar a tela (§9, risco 6).
+2. Gráfico rasterizado em A4 ou serrilha na impressão ou pesa. Vetor imprime
+   nítido.
+3. A paleta vem de `src/css.py` — não há **nenhuma** cor definida no módulo
+   novo. O PDF e a tela são a mesma marca, e o documento sai da sala junto com a
+   lembrança da tela.
+
+#### Os cinco defeitos que só a renderização mostrou
+
+`pytest` continuou verde durante todos eles. São a mesma lição da §4.7, agora na
+camada do papel — foram encontrados rasterizando o PDF e **olhando**.
+
+| | O que aparecia | Correção |
+|---|---|---|
+| Goteira do eixo Y | a curva entrava por baixo dos rótulos "R$ 200 mil" e o "0%" caía fora do eixo desenhado | o plot começa **depois** da goteira, não na margem |
+| Um tick só | numa faixa de R$ 45 mil a R$ 390 mil o eixo saía com **um** rótulo — sem um segundo tick não há escala, só um número solto | o passo é escolhido pela **contagem** que produz, e não arredondando a largura do intervalo para cima |
+| Rótulos iguais | numa faixa estreita, `R$ 1.000 / 1.050 / 1.100` viravam três ticks lendo "R$ 1 mil" | quando a forma curta repete, o eixo cai para o número inteiro |
+| Rótulo riscado | o valor do marcador saía cortado pela própria curva, que sobe justamente ali | retângulo da cor da superfície atrás do rótulo |
+| Valor cortado | a decisão G saía "bloco de investimento **ausent**" — `cell` de largura 0 não quebra | `linha()` quebra o valor em `multi_cell`, com `align="L"` explícito (o default do fpdf2 é **justificado**) |
+
+#### Latin-1: transcrever, não apagar
+
+As fontes núcleo do `fpdf2` são Latin-1, e `—`, `→`, `−`, `≈` e `◆` não cabem
+nela. O `NFKD` + `ignore` anterior os **apagava**: o título do próprio documento
+saía `"Simulação de viabilidade  refil de palhetas"`, com o buraco no lugar do
+travessão — e passou despercebido porque as buscas dos testes eram por trechos
+curtos. Agora há uma tabela de transcrição (`—` → `-`, `→` → `->`, `−` → `-`),
+aplicada **antes** do teste de codificação. `→` vira `->` e não `>` de propósito:
+sozinho ao lado de um número, `>` lê como "maior que", e a faixa de manchete tem
+exatamente essa vizinhança.
+
+#### Marca-d'água em todas as páginas
+
+Ela era desenhada **uma vez**, depois do `add_page`. Com duas páginas, um
+documento interno sairia com a segunda limpa — justamente a que carrega preço e
+custo de tabela (plano §6.3). Passou para o `header()`, que roda em toda página,
+e vem **primeiro** nele: PDF não tem camadas, só ordem de escrita, e é isso que
+a deixa atrás do conteúdo.
+
+**Travado por:** `test_pdf_duas_paginas_com_resultado_e_uma_sem`,
+`test_pdf_traz_os_tres_cenarios_medidos`, `test_pdf_cenarios_nao_prometem`,
+`test_pdf_marca_dagua_em_TODAS_as_paginas`,
+`test_pdf_transcreve_o_travessao_em_vez_de_apagar`,
+`test_pdf_valor_longo_nao_e_cortado`, `test_pdf_eixo_da_curva_sempre_tem_escala`,
+`test_pdf_rotulos_do_eixo_nunca_se_repetem`,
+`test_pdf_nenhum_numero_de_resultado_em_vermelho`,
+`test_pdf_incremental_negativo_sai_com_sinal_e_sem_promessa`,
+`test_T14_moeda_curta_espelha_o_eixo_da_tela` e
+`test_T14_abreviacao_de_moeda_e_so_para_eixo`.
+
 ### D4 — Vermelho não é usado em filete de seção *(revogada por D5)*
 
 Registro para rastreabilidade: na rodada anterior os filetes de seção usavam
@@ -870,6 +973,8 @@ Não são opinião — só não são comando. `python verificar.py` os lista no 
 | 6 | **Cashback no celular (D23).** Em 390×844: os seis campos aparecem **um por linha**, cada um com o rótulo `<destinatário> · <categoria>` visível e sem quebra em duas linhas; o chip de subtotal aparece ao preencher e some ao apagar | | |
 | 7 | **Cashback no tablet (D23).** Em 1180×820 e em 768 px: os três campos de cada categoria continuam **lado a lado**, e o título da categoria não encosta no campo de cima | | |
 | 8 | **Baixar o PDF (D23 / §4.11).** Com o resultado na tela, abrir "Levar esta simulação — PDF": o botão está em vermelho de marca, **sem nenhuma marcação impressa no rótulo**, e o toque baixa um arquivo que abre num leitor de PDF. Repetir com o nome do cliente acentuado e conferir o nome do arquivo baixado | | |
+| 9 | **O PDF impresso (D24).** Imprimir a página 1 **em preto e branco**: a segunda barra continua distinguível da primeira e as duas linhas da curva continuam distinguíveis entre si (§3.1.3 / §9.4 — a distinção não pode depender de cor) | | |
+| 10 | **O PDF de uma rede grande (D24).** Simular 8+ pontos de venda: os valores de sete dígitos cabem nos cartões sem corte, e os rótulos do eixo Y da curva não se repetem | | |
 
 **Medições já conferidas no navegador** (Chrome headless, 1180×1100, 11/08/2026).
 Estas cobrem o item 3 parcialmente — o que resta dele é olhar a tela ligada.

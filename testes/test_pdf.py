@@ -11,6 +11,7 @@ from dataclasses import replace
 
 import pytest
 
+from src import parametros as P
 from src.calculo import calcular
 from src.componentes.exportador_pdf import gerar_pdf, nome_do_arquivo
 from testes.conftest import entradas_do_caso
@@ -19,6 +20,17 @@ from testes.conftest import entradas_do_caso
 def _pdf(nome_do_caso: str = "T1", cliente: str = "") -> bytes:
     entradas = entradas_do_caso(nome_do_caso)
     return gerar_pdf(entradas, calcular(entradas), cliente)
+
+
+def _paginas(dados: bytes) -> int:
+    """Quantas paginas o documento tem, contando os objetos `/Type /Page`.
+
+    `[^s]` no fim para nao casar com `/Type /Pages`, que e o NO DE INDICE e
+    aparece uma vez por documento.
+    """
+    import re
+
+    return len(re.findall(rb"/Type\s*/Page[^s]", dados))
 
 
 def _texto_do_pdf(dados: bytes) -> str:
@@ -137,6 +149,198 @@ def test_pdf_traducao_vem_antes_do_anual() -> None:
 def test_pdf_com_nome_do_cliente() -> None:
     texto = _texto_do_pdf(_pdf(cliente="Concessionária Exemplo"))
     assert "Concession" in texto
+
+
+# ---------------------------------------------------------------------------
+# D24 — o documento visual
+# ---------------------------------------------------------------------------
+
+
+def test_pdf_duas_paginas_com_resultado_e_uma_sem() -> None:
+    """As duas paginas tem papeis distintos, e a primeira so existe com numero.
+
+    Pagina 1 e a leitura de relance; pagina 2 e a auditoria. Sem valor anual
+    nao ha o que ler de relance — o documento abre dizendo o que falta, e nao
+    com uma pagina de cartoes vazios.
+    """
+    assert _paginas(_pdf("T1")) == 2
+
+    entradas = entradas_do_caso("T5")  # sem passagens: estado E1
+    assert _paginas(gerar_pdf(entradas, calcular(entradas))) == 1
+
+
+def test_pdf_traz_os_tres_cenarios_medidos() -> None:
+    """D24 — E O PESSIMISTA ENTRA.
+
+    Um documento que mostrasse so o cenario favoravel seria material de venda.
+    A faixa inteira e o que deixa o gerente escolher em qual acreditar, e a
+    procedencia medida (§5.3) e o que sustenta os tres.
+
+    Os valores sao os do MESMO preco, MESMO custo e MESMA operacao — so o par
+    de aproveitamento muda, como os botoes de cenario da tela fazem.
+    """
+    texto = _texto_do_pdf(_pdf("T1"))
+
+    for preset in P.PRESETS:
+        assert preset.rotulo in texto, preset.rotulo
+
+    # T1 e 300 passagens, 1 ponto: 10% -> R$ 50.400; 40% -> R$ 182.160;
+    # 70% -> R$ 319.752, com o traseiro seguindo o par de cada preset.
+    for valor in ("50.400", "182.160", "319.752"):
+        assert valor in texto, valor
+
+    # E a procedencia medida vai junto, com a palavra "estimativa" NEGADA —
+    # nunca afirmada ao lado de um numero de carteira (§4).
+    assert "não é estimativa" in texto
+
+
+def test_pdf_cenarios_nao_prometem() -> None:
+    """§4 / §12 no documento inteiro, agora que ele tem cara de material.
+
+    "Bata o olho e fique evidente que e um bom negocio" foi atendido pelo
+    DESENHO. Nenhum adjetivo entrou junto.
+    """
+    texto = _texto_do_pdf(_pdf("T1")).lower()
+    for proibida in ("roi", "garantid", "grátis", "imperdív", "lucro"):
+        assert proibida not in texto, proibida
+
+
+def test_pdf_marca_dagua_em_TODAS_as_paginas() -> None:
+    """A pagina 2 e a que carrega preco e custo de tabela.
+
+    Antes de D24 o documento tinha uma pagina so e a marca-d'agua era desenhada
+    uma vez, depois do `add_page`. Com duas paginas isso deixaria a SEGUNDA
+    limpa — justamente a que tem o custo de aquisicao, que e o preco de venda
+    da Suicatech (plano §6.3). Ela passou para o `header`, que roda em toda
+    pagina.
+
+    Duas ocorrencias por pagina: a marca-d'agua e o rodape.
+    """
+    dados = _pdf("T1")
+    texto = _texto_do_pdf(dados)
+    assert _paginas(dados) == 2
+    assert texto.count("DOCUMENTO INTERNO") == 4, (
+        "a marca-d'água e o rodapé precisam aparecer nas duas páginas"
+    )
+
+
+def test_pdf_transcreve_o_travessao_em_vez_de_apagar() -> None:
+    """O titulo do proprio documento tinha um buraco no lugar do travessao.
+
+    Latin-1 nao tem "—", e o `NFKD` + `ignore` anterior o APAGAVA: saia
+    "Simulação de viabilidade  refil de palhetas", com dois espaços. Nenhum
+    teste pegava, porque a busca era por trechos curtos.
+    """
+    from src.componentes.pdf_visual import texto as transcrever
+
+    assert transcrever("a — b") == "a - b"
+    assert transcrever("hoje → amanhã") == "hoje -> amanhã"
+    assert transcrever("−R$ 10") == "-R$ 10"
+    # O que JA cabia em Latin-1 nao pode ser tocado.
+    assert transcrever("Simulação · 2,3× · faturamento ÷ custo") == (
+        "Simulação · 2,3× · faturamento ÷ custo"
+    )
+
+    texto = _texto_do_pdf(_pdf("T1"))
+    assert "Simulação de viabilidade - refil de palhetas" in texto
+    assert "viabilidade  refil" not in texto, "o travessão virou buraco"
+
+
+def test_pdf_valor_longo_nao_e_cortado() -> None:
+    """`linha` quebra o valor. Era um `cell` de largura 0, que corta.
+
+    A decisao G saia "bloco de investimento ausent" — e ela e uma das que a
+    §5.12 manda imprimir justamente porque ninguem estara ao lado da folha
+    para completar a frase.
+    """
+    texto = _texto_do_pdf(_pdf("T1"))
+    assert "investimento ausente" in texto
+
+
+def test_pdf_eixo_da_curva_sempre_tem_escala() -> None:
+    """Um tick sozinho nao e regua — e um numero solto ao lado de uma linha.
+
+    A primeira versao do calculo de ticks derivava o passo da largura do
+    intervalo e arredondava para cima, o que pode DOBRAR o passo: numa faixa de
+    R$ 45 mil a R$ 390 mil ela produzia um unico tick.
+    """
+    from src.componentes.pdf_visual import ticks_de_eixo
+
+    faixas = [
+        (45_360, 390_240),
+        (0, 141_480),
+        (19_440, 344_880),
+        (-36_828, 120_000),
+        (1_000, 1_200),
+        (362_880, 8_036_928),
+    ]
+    for piso, teto in faixas:
+        ticks = ticks_de_eixo(piso, teto)
+        assert len(ticks) >= 2, f"{piso}..{teto} produziu {ticks}"
+        assert all(piso <= v <= teto for v in ticks), f"{piso}..{teto}: {ticks}"
+        assert ticks == sorted(ticks)
+
+
+def test_pdf_rotulos_do_eixo_nunca_se_repetem() -> None:
+    """Tres ticks lendo "R$ 1 mil" em alturas diferentes se contradizem.
+
+    `moeda_curta` arredonda por construcao; numa faixa estreita ela colapsa, e
+    o eixo cai para o numero inteiro.
+    """
+    from src.componentes.exportador_pdf import _ticks_do_eixo
+
+    for piso, teto in ((1_000, 1_200), (45_360, 390_240), (0, 141_480)):
+        rotulos = [rotulo for _, rotulo in _ticks_do_eixo(piso, teto)]
+        assert len(set(rotulos)) == len(rotulos), f"{piso}..{teto}: {rotulos}"
+
+
+def test_pdf_nenhum_numero_de_resultado_em_vermelho() -> None:
+    """§13.1 — "numero financeiro em vermelho le como prejuizo".
+
+    Checagem ESTRUTURAL, e nao por texto: o vermelho da marca e legitimo neste
+    modulo (o segmento de barra, o marcador da curva, a anotacao do vao), e uma
+    busca no arquivo inteiro acusaria esses usos. O que nao pode e o cartao de
+    KPI e a tira de cenario pintarem o VALOR de vermelho — e e isso que a
+    §13.1 protege, porque ali mora o numero que o cliente le como resultado.
+    """
+    import ast
+
+    from testes.checagens import RAIZ
+
+    fonte = (RAIZ / "src" / "componentes" / "pdf_visual.py").read_text(
+        encoding="utf-8"
+    )
+    arvore = ast.parse(fonte)
+
+    for no in ast.walk(arvore):
+        if not isinstance(no, ast.FunctionDef) or no.name != "kpi":
+            continue
+        corpo = ast.get_source_segment(fonte, no) or ""
+        assert "MARCA_VERMELHO" not in corpo, (
+            "o cartão de KPI não pode pintar nada de vermelho: é onde mora o "
+            "número que o cliente lê como resultado (§13.1)"
+        )
+        return
+    raise AssertionError("pdf_visual.kpi não encontrado")
+
+
+def test_pdf_incremental_negativo_sai_com_sinal_e_sem_promessa() -> None:
+    """T3 no documento: a margem pode ser negativa, e o plano §1.1 avisa disso.
+
+    O documento nao esconde e tambem nao pinta de vermelho. O rotulo do vao nao
+    leva "+" — senao sairia "+ -R$ 36.828".
+    """
+    entradas = replace(entradas_do_caso("T1"), custo_dianteiro=250.0)
+    resultado = calcular(entradas)
+    assert resultado.anual is not None and resultado.anual < 0
+
+    texto = _texto_do_pdf(gerar_pdf(entradas, resultado))
+    assert "36.828" in texto
+    assert "+ -R$" not in texto and "+ −R$" not in texto
+    # E o desenho explica o vao em palavras, sem vocabulario de alerta (§4).
+    assert "vão tracejado" in texto
+    for proibida in ("inválido", "atenção", "cuidado", "erro"):
+        assert proibida not in texto.lower(), proibida
 
 
 def test_pdf_nome_do_arquivo_sem_cliente() -> None:

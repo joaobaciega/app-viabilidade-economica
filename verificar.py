@@ -67,6 +67,14 @@ MANUAIS = [
         "campos de cada categoria continuam LADO A LADO.",
     ),
     (
+        "O PDF impresso em preto e branco (D24)",
+        "Imprima a pagina 1 SEM COR: a segunda barra continua distinguivel da "
+        "primeira, e as duas linhas da curva continuam distinguiveis entre si. "
+        "A distincao nao pode depender de cor (§3.1.3, §9.4). Confira tambem "
+        "uma rede de 8+ pontos: valores de sete digitos cabem nos cartoes sem "
+        "corte e os rotulos do eixo Y nao se repetem.",
+    ),
+    (
         "Baixar o PDF (D23, §4.11)",
         "Com o resultado na tela, abra 'Levar esta simulacao — PDF': o botao "
         "esta em vermelho de marca, SEM NENHUMA MARCACAO IMPRESSA no rotulo, e "

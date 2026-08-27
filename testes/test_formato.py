@@ -87,6 +87,72 @@ def test_decimal_usa_virgula() -> None:
     assert formato.decimal(4.545) == "4,5"
 
 
+def test_T14_moeda_curta_espelha_o_eixo_da_tela() -> None:
+    """D24: `moeda_curta` e o gemeo do `labelExpr` do eixo Y do gráfico.
+
+    Os DOIS limiares são os mesmos, e é isso que impede o PDF e a tela de
+    rotularem o mesmo tick de dois jeitos na frente do cliente:
+
+        >= 1.000.000  ->  'R$ X,X mi'   (uma casa)
+        >= 1.000      ->  'R$ X mil'    (sem casa)
+        abaixo disso  ->  'R$ X'
+
+    Mexer aqui obriga a mexer em `grafico_sensibilidade._eixo_y`.
+    """
+    assert formato.moeda_curta(141_480) == "R$ 141 mil"
+    assert formato.moeda_curta(1_241_000) == "R$ 1,2 mi"
+    assert formato.moeda_curta(999) == "R$ 999"
+    assert formato.moeda_curta(1_000) == "R$ 1 mil"
+    assert formato.moeda_curta(1_000_000) == "R$ 1,0 mi"
+    assert formato.moeda_curta(-50_000) == "−R$ 50 mil"
+
+    # E o `labelExpr` da tela precisa continuar com os mesmos dois limiares.
+    from pathlib import Path
+
+    fonte = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "componentes"
+        / "grafico_sensibilidade.py"
+    ).read_text(encoding="utf-8")
+    assert "1000000" in fonte and "' mi'" in fonte
+    assert "' mil'" in fonte
+
+
+def test_T14_abreviacao_de_moeda_e_so_para_eixo() -> None:
+    """§6.1.5: abreviar moeda continua PROIBIDO em texto.
+
+    `moeda_curta` existe para o tick do eixo, que concorre por espaço com o
+    desenho. Nenhum rótulo, cartão, linha de resultado ou célula de tabela
+    pode chamá-la — e este teste é onde isso está travado.
+    """
+    import ast
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1]
+    permitidos = {
+        # o eixo do gráfico do PDF, e o filtro que decide se ele abrevia
+        "exportador_pdf.py",
+        "formato.py",
+    }
+
+    culpados: list[str] = []
+    for caminho in (raiz / "src").rglob("*.py"):
+        if caminho.name in permitidos:
+            continue
+        arvore = ast.parse(caminho.read_text(encoding="utf-8"))
+        for no in ast.walk(arvore):
+            if isinstance(no, ast.Attribute) and no.attr == "moeda_curta":
+                culpados.append(f"{caminho.name}:{no.lineno}")
+            elif isinstance(no, ast.Name) and no.id == "moeda_curta":
+                culpados.append(f"{caminho.name}:{no.lineno}")
+
+    assert not culpados, (
+        "moeda_curta abrevia, e abreviar moeda em texto é proibido "
+        f"(§6.1.5): {culpados}"
+    )
+
+
 def test_venda_da_unidade_concorda_com_a_unidade_declarada() -> None:
     """D23: "por par vendido" e "por unidade vendida" concordam em genero.
 

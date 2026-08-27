@@ -56,6 +56,35 @@ def moeda_agregada(valor: float) -> str:
     return f"{MENOS}{texto}" if negativo else texto
 
 
+def moeda_curta(valor: float) -> str:
+    """SO PARA EIXO DE GRAFICO: 141480 -> 'R$ 141 mil'; 1.24e6 -> 'R$ 1,2 mi'.
+
+    ABREVIAR MOEDA E PROIBIDO EM TEXTO (§6.1.5, `test_T14_nunca_abrevia_moeda`),
+    e continua proibido: nenhum rotulo, cartao, linha de resultado ou celula de
+    tabela pode chamar esta funcao. O que a §6.1.5 protege e o numero que o
+    cliente LE COMO RESULTADO — "R$ 1,2 mi" no lugar de "R$ 1.241.000" e um
+    arredondamento que ninguem pediu.
+
+    Um TICK DE EIXO nao e esse numero. Ele e a regua, e a regua concorre por
+    espaco com o desenho: quatro ticks de "R$ 1.241.000" na vertical comem um
+    terco da largura do plot. O grafico da tela ja faz exatamente isto, num
+    `labelExpr` de Altair, com os mesmos dois limiares — esta funcao e o gemeo
+    dele no PDF, e `test_T14_moeda_curta_espelha_o_eixo_da_tela` trava os dois
+    juntos. Ao mexer aqui, mexa em `grafico_sensibilidade._eixo_y` tambem.
+    """
+    negativo = valor < 0
+    n = abs(valor)
+
+    if n >= 1_000_000:
+        texto = f"R$ {decimal(n / 1_000_000, casas=1)} mi"
+    elif n >= 1_000:
+        texto = f"R$ {inteiro(n / 1_000)} mil"
+    else:
+        texto = f"R$ {inteiro(n)}"
+
+    return f"{MENOS}{texto}" if negativo else texto
+
+
 def moeda_unitaria(valor: float) -> str:
     """Valor unitario ou digitado, COM centavos: 197.9 -> 'R$ 197,90'."""
     negativo = valor < 0
