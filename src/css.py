@@ -789,6 +789,217 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 .st-hoje-refil b {{ color: var(--tinta-primaria) !important; font-weight: 700 !important; }}
 .st-hoje-refil .seta {{ color: var(--marca) !important; font-weight: 800 !important; }}
 
+/* ===================================================================
+   9.1 O RESULTADO COMPLETO — a tela espelhando o PDF. D28.
+   "A tela de resultados deve ser exatamente igual o que aparece no PDF."
+
+   O CONTEUDO vem de `src/apresentacao.py`, que a tela e o papel consomem
+   igual. O que mora aqui e SO a tinta da tela — as mesmas pecas que
+   `pdf_visual.py` desenha em vetor, desenhadas em HTML.
+
+   Nenhum bloco desta secao usa `st.container(key=...)`: tudo e HTML proprio
+   dentro do container `resultado` que ja existe. Por isso nenhuma regra daqui
+   precisa (nem pode) usar classe propria como ancestral de `[data-testid=]`.
+   =================================================================== */
+
+/* --- a manchete: os dois numeros, lado a lado, no maior corpo (D26) --- */
+.st-manchete {{
+  display: flex; align-items: stretch;
+  background: var(--superficie-escura);
+  border-radius: var(--raio-cartao);
+  box-shadow: var(--sombra-hero);
+  padding: 22px 26px; margin: 6px 0 6px;
+}}
+.st-manchete-col {{ flex: 1 1 0; min-width: 0; padding-right: 18px; }}
+.st-manchete-col + .st-manchete-col {{
+  border-left: 1px solid var(--tinta-secundaria);
+  padding-left: 26px; padding-right: 0;
+}}
+.st-manchete-rotulo {{
+  display: block; margin-bottom: 10px;
+  font-size: var(--t-derivado) !important; font-weight: 700 !important;
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--tinta-clara-2) !important;
+}}
+/* `clamp` porque o numero e o unico elemento da tela cuja largura depende do
+   cliente: "R$ 7.694.784" numa rede de doze pontos tem o dobro dos caracteres
+   de "R$ 141.480", e um corpo fixo cortaria um dos dois. E o equivalente do
+   `_fonte_que_cabe` do PDF, resolvido pelo navegador. */
+.st-manchete-valor {{
+  display: block; line-height: 1.05 !important;
+  font-size: clamp(30px, 4.2vw, var(--t-traducao)) !important;
+  font-weight: 800 !important; letter-spacing: -.02em;
+  color: var(--tinta-clara) !important;
+  font-variant-numeric: tabular-nums;
+}}
+.st-manchete-apoio {{
+  display: block; margin-top: 8px;
+  font-size: var(--t-mensal) !important; font-weight: 500 !important;
+  color: var(--tinta-clara-2) !important;
+}}
+.st-nota-grupo {{
+  font-size: var(--t-derivado) !important; font-weight: 500 !important;
+  color: var(--tinta-discreta) !important;
+  margin: 0 0 14px !important;
+}}
+
+/* --- titulo de secao do resultado, o gemeo de `doc.secao()` ---------- */
+.st-secao-res {{
+  display: block; margin: 26px 0 4px !important; padding-bottom: 6px;
+  border-bottom: 1px solid var(--traco);
+  font-size: var(--t-rotulo) !important; font-weight: 700 !important;
+  color: var(--tinta-primaria) !important;
+}}
+.st-secao-nota-res {{
+  font-size: var(--t-derivado) !important; font-weight: 500 !important;
+  line-height: 1.45 !important;
+  color: var(--tinta-secundaria) !important;
+  margin: 8px 0 0 !important;
+}}
+
+/* --- barras: hoje x com o refil, a segunda EMPILHADA ----------------
+   D29: o plot passou de 210px para 340px e a barra de 150px para 190px, a
+   pedido do cliente ("deixe esse grafico maior, para ficar mais evidente o
+   aumento"). E a peca cujo TAMANHO carrega o argumento: a razao entre as duas
+   alturas e o que se le antes de qualquer numero, e num plot baixo uma base
+   pequena vira um risco de 10px que nao da para comparar com nada.
+
+   `--altura-barras` existe para haver UM lugar onde mexer nisso: o plot, a
+   regua do vao e o espacador do delta tem de ter a MESMA altura, senao o
+   rotulo do vao descola da barra que ele mede. */
+:root {{ --altura-barras: 340px; }}
+
+.st-barras {{
+  display: flex; align-items: flex-end; gap: 26px;
+  padding: 34px 0 0; margin: 0;
+}}
+.st-barra {{
+  flex: 0 0 auto; width: 190px;
+  display: flex; flex-direction: column; align-items: center;
+}}
+/* A altura do plot e FIXA e comum as duas colunas: e ela que faz a proporcao
+   entre as barras ser lida como proporcao. */
+.st-barra-corpo {{
+  width: 100%; height: var(--altura-barras);
+  display: flex; flex-direction: column; justify-content: flex-end;
+}}
+/* A PILHA e o que tem a altura do valor; os segmentos sao fracoes DELA. Isso
+   e o que permite o rotulo ficar colado no topo da barra (`bottom: 100%`) em
+   vez de flutuar no topo da coluna — que era o defeito da primeira versao:
+   com a base em 4,8% do plot, "R$ 99.000" aparecia a 300px do risco que ele
+   nomeava. No PDF o rotulo sempre ficou colado; aqui nao ficava. */
+.st-barra-pilha {{
+  position: relative; width: 100%;
+  display: flex; flex-direction: column; justify-content: flex-end;
+}}
+.st-barra-valor {{
+  position: absolute; bottom: 100%; left: -14px; right: -14px;
+  margin-bottom: 8px; text-align: center;
+  font-size: var(--t-anual) !important; font-weight: 800 !important;
+  line-height: 1.1 !important;
+  color: var(--tinta-primaria) !important;
+  font-variant-numeric: tabular-nums;
+}}
+.st-barra-seg {{ width: 100%; border-radius: 6px 6px 0 0; }}
+.st-barra-base {{
+  background: var(--superficie-3); border: 1px solid var(--traco);
+}}
+.st-barra-inc {{ background: var(--marca); }}
+/* Incremental NEGATIVO: o vao que falta, em contorno tracejado. Nao e
+   vermelho — numero e barra de perda em vermelho leem como alerta, e a §13.1
+   nao autoriza (o desenho ja diz o que houve). */
+.st-barra-falta {{
+  border: 1.5px dashed var(--tinta-secundaria);
+  border-bottom: none; background: transparent;
+}}
+.st-barra-nome {{
+  display: block; margin-top: 10px; text-align: center;
+  font-size: var(--t-rotulo) !important; font-weight: 500 !important;
+  line-height: 1.35 !important;
+  color: var(--tinta-secundaria) !important;
+}}
+.st-barra-delta {{
+  flex: 1 1 auto; height: var(--altura-barras);
+  display: flex; flex-direction: column;
+}}
+.st-barra-delta-vao {{
+  display: flex; align-items: center; padding-left: 16px;
+  border-left: 3px solid var(--marca);
+}}
+.st-barra-delta-vao span {{
+  font-size: var(--t-anual) !important; font-weight: 800 !important;
+  color: var(--marca) !important;
+  font-variant-numeric: tabular-nums;
+}}
+/* Perda: a regua e o valor em tinta primaria, com o sinal (§13.1). */
+.st-barra-delta--perda .st-barra-delta-vao {{
+  border-left-color: var(--tinta-primaria);
+}}
+.st-barra-delta--perda .st-barra-delta-vao span {{
+  color: var(--tinta-primaria) !important;
+}}
+
+/* --- os tres cenarios medidos --------------------------------------- */
+.st-cenarios {{ display: flex; gap: 12px; margin: 14px 0 0; }}
+.st-cenario {{
+  flex: 1 1 0; min-width: 0;
+  background: var(--superficie-2);
+  border: 1px solid var(--traco);
+  border-radius: var(--raio-campo);
+  padding: 12px 14px 12px;
+}}
+/* O ATIVO nao se distingue so por cor (§3.1.3 / §9.4): barra lateral grossa,
+   que sobrevive a impressao em preto e branco e ao daltonismo. */
+.st-cenario--ativo {{
+  background: var(--marca-lavado); border-color: var(--marca-borda);
+  border-left: 4px solid var(--marca);
+  padding-left: 11px;
+}}
+.st-cenario-rotulo {{
+  display: block;
+  font-size: var(--t-derivado) !important; font-weight: 700 !important;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--tinta-discreta) !important;
+}}
+.st-cenario--ativo .st-cenario-rotulo {{ color: var(--marca) !important; }}
+.st-cenario-aprov {{
+  display: block; margin-top: 2px;
+  font-size: var(--t-derivado) !important; font-weight: 500 !important;
+  color: var(--tinta-secundaria) !important;
+}}
+.st-cenario-valor {{
+  display: block; margin-top: 10px;
+  font-size: var(--t-mensal) !important; font-weight: 800 !important;
+  color: var(--tinta-primaria) !important;
+  font-variant-numeric: tabular-nums;
+}}
+.st-cenario-apoio {{
+  display: block; margin-top: 2px;
+  font-size: var(--t-vendedor) !important; font-weight: 500 !important;
+  color: var(--tinta-secundaria) !important;
+}}
+
+/* --- as secoes de auditoria: `rotulo ....... valor` ------------------ */
+.st-linhas {{ display: block; margin: 10px 0 0; }}
+.st-linha-par {{
+  display: flex; gap: 16px; align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--grade);
+}}
+.st-linha-par:last-child {{ border-bottom: none; }}
+.st-linha-rotulo {{
+  flex: 1 1 50%; min-width: 0;
+  font-size: var(--t-derivado) !important; font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: var(--tinta-secundaria) !important;
+}}
+.st-linha-valor {{
+  flex: 1 1 50%; min-width: 0;
+  font-size: var(--t-rotulo) !important; font-weight: 600 !important;
+  line-height: 1.4 !important;
+  color: var(--tinta-primaria) !important;
+}}
+
 /* AS QUATRO CLASSES A SEGUIR SAO DE TINTA CLARA e so funcionam sobre superficie
    escura. Nenhuma e usada pela Tela 1 desde D21 — ficam porque ainda ha
    referencia a elas em `cartao_comparativo.py` (.st-anual, .st-rotulo-resultado)
@@ -1141,6 +1352,34 @@ hr, [data-testid="stDivider"] hr {{ border-color: var(--traco) !important; }}
 
   .st-cartao {{ padding: 16px 16px 14px; }}
   .st-tabela {{ max-height: 260px; }}
+
+  /* D28 — o resultado completo no celular. As tres pecas que NAO cabem em
+     linha a 390px empilham; as barras continuam lado a lado porque comparar
+     duas alturas e a propria leitura do desenho. */
+  .st-manchete {{ flex-direction: column; padding: 16px 18px; }}
+  .st-manchete-col {{ padding: 0; }}
+  .st-manchete-col + .st-manchete-col {{
+    border-left: none; border-top: 1px solid var(--tinta-secundaria);
+    padding: 14px 0 0; margin-top: 14px;
+  }}
+  .st-cenarios {{ flex-direction: column; gap: 8px; }}
+  /* As barras continuam LADO A LADO: comparar duas alturas e a propria leitura
+     do desenho, e empilhadas elas deixariam de comparar. O plot encolhe de
+     340px para 220px — ainda o suficiente para a razao entre as duas ser
+     lida —, e a coluna do vao vira uma faixa estreita a direita. */
+  .st-barras {{ gap: 8px; padding-top: 26px; }}
+  .st-barra {{ width: auto; flex: 1 1 0; min-width: 0; }}
+  :root {{ --altura-barras: 220px; }}
+  .st-barra-delta {{ flex: 0 0 auto; }}
+  .st-barra-delta-vao {{ padding-left: 8px; }}
+  .st-barra-valor {{ font-size: var(--t-mensal) !important; left: -6px; right: -6px; }}
+  .st-barra-delta-vao span {{ font-size: var(--t-mensal) !important; }}
+  .st-barra-nome {{ font-size: var(--t-derivado) !important; }}
+  /* O par `rotulo / valor` vira duas linhas: a 390px, 50% de largura para um
+     rotulo como "Preço ao consumidor final, por par (dianteiro)" o quebra em
+     quatro linhas contra um valor de uma. */
+  .st-linha-par {{ flex-direction: column; gap: 0; }}
+  .st-linha-rotulo, .st-linha-valor {{ flex: none; width: 100%; }}
 }}
 
 /* §9: foco visivel em todos os controles. NUNCA outline: none. */

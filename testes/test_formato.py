@@ -171,8 +171,10 @@ def test_T14_abreviacao_de_moeda_e_so_para_eixo() -> None:
 
     raiz = Path(__file__).resolve().parents[1]
     permitidos = {
-        # o eixo do gráfico do PDF, e o filtro que decide se ele abrevia
-        "exportador_pdf.py",
+        # `rotulos_do_eixo` é o único chamador: ele monta os ticks do eixo Y da
+        # curva — os mesmos na tela e no PDF desde D28 — e cai para o número
+        # inteiro quando a forma curta repete.
+        "apresentacao.py",
         "formato.py",
     }
 

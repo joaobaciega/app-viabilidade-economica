@@ -50,29 +50,36 @@ def test_T1_ordem_dos_tres_cartoes_e_a_hierarquia(  # noqa: D401
     leitura da §5.5 nao mudou.
 
     Duas verificacoes, porque as duas podem falhar independentemente:
-      1. a ordem dos tres cartoes, na ordem do script
-      2. o cartao principal e >= 1,25 x os outros dois (48/36 = 1,33)
-    """
-    import inspect
+      1. a ordem dos numeros
+      2. a manchete e >= 1,25 x os cartoes de apoio (48/36 = 1,33)
 
-    from src.componentes import bloco_resultado
+    ATUALIZADO EM D28. O teste lia a FONTE de `bloco_resultado._cartoes` por
+    AST; a ordem deixou de morar la e passou a morar em `apresentacao.montar`,
+    que a tela e o PDF consomem igual. Ler o MODELO MONTADO, e nao o texto do
+    codigo, e mais forte: ele afirma o que sai, e vale para as duas superficies
+    de uma vez.
+    """
+    from src import apresentacao
+    from src.calculo import calcular
     from src.css import T_ANUAL, T_TRADUCAO
 
     assert T_TRADUCAO >= 1.25 * T_ANUAL, (
-        f"o numero do cartao principal ({T_TRADUCAO}) precisa ser >= 1,25 x o "
-        f"dos outros dois ({T_ANUAL}) — sem isso os tres cartoes tem o mesmo "
-        f"peso e a hierarquia pedida desaparece"
+        f"o numero da manchete ({T_TRADUCAO}) precisa ser >= 1,25 x o dos "
+        f"cartoes de apoio ({T_ANUAL}) — sem isso todos tem o mesmo peso e a "
+        f"hierarquia pedida desaparece"
     )
 
-    fonte = inspect.getsource(bloco_resultado._cartoes)
-    posicoes = [
-        fonte.index("Faturamento adicional"),
-        fonte.index("Margem de contribuição adicional"),
-        fonte.index("_cartao_markup"),
-    ]
-    assert posicoes == sorted(posicoes), (
-        "a ordem dos cartoes precisa ser faturamento adicional -> margem de "
-        "contribuicao adicional -> mark up da operacao (D21)"
+    e = entradas_do_caso("T1")
+    a = apresentacao.montar(e, calcular(e))
+
+    assert a.manchete is not None
+    assert [c.rotulo for c in a.manchete] == [
+        "Faturamento adicional",
+        "Margem de contribuição adicional",
+    ], "a manchete abre por faturamento, depois margem (D21, D26)"
+    assert a.apoio[0].rotulo == "Mark up da operação", (
+        "o mark up e o primeiro cartao de apoio — a ordem dos tres numeros de "
+        "D21 sobrevive a D26 com os dois primeiros na manchete"
     )
 
 

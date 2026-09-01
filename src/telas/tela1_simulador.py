@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src import estado, formato, plausibilidade
+from src import apresentacao, estado, formato, plausibilidade
 from src import parametros as P
 from src.calculo import calcular
 from src.componentes import (
@@ -103,11 +103,27 @@ def renderizar() -> None:
     # obrigatorios preenchidos. Ver estado.resultado_visivel().
     # ==================================================================
     if estado.resultado_visivel():
-        bloco_resultado.bloco(resultado)
+        # D28 — A TELA E O PDF DESENHAM A MESMA MONTAGEM, nesta ordem:
+        #
+        #   manchete -> apoio -> barras -> cenarios -> cashback   (pagina 1)
+        #   curva -> premissas -> preco e custo -> decisoes       (pagina 2)
+        #
+        # A ordem NAO e escolhida aqui: ela e a ordem dos campos de
+        # `apresentacao.Apresentacao`. O que a tela tem a mais sao as tres
+        # pecas do fim — o gemeo em tabela (obrigatorio pela §5.11 e §9, e sem
+        # equivalente no papel, onde nao ha tooltip a substituir), o painel de
+        # formula e a area de exportacao.
+        a = apresentacao.montar(entradas, resultado)
 
+        bloco_resultado.bloco(a)
+
+        bloco_resultado.titulo_da_curva(a)
         with st.container(key="grafico"):
             grafico_sensibilidade.grafico(entradas, resultado)
+        bloco_resultado.frase_da_curva(a)
         grafico_sensibilidade.tabela_da_curva(entradas, resultado)
+
+        bloco_resultado.secoes(a)
 
         painel_formula.painel(entradas, resultado)
         bloco_exportar(entradas, resultado)

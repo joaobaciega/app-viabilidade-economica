@@ -413,41 +413,106 @@ def test_render_T4_traseiro_vazio_fica_fora_da_conta() -> None:
     )
 
 
-def test_render_ordem_dos_tres_cartoes_no_artefato() -> None:
-    """D21 — a ordem dos tres numeros, verificada no ARTEFATO.
-
-    SUBSTITUI `test_render_traducao_vem_antes_e_maior_que_o_anual`, que exigia
-    `.st-traducao` antes de `.st-anual` no HTML. A traducao saiu da tela; a
-    mesma regra continua travada no PDF, por `test_pdf_traducao_vem_antes_do_anual`.
+def test_render_ordem_do_resultado_no_artefato() -> None:
+    """A ordem de leitura do resultado, verificada no ARTEFATO.
 
     Verificar no artefato e nao so na fonte importa porque em Streamlit a
     hierarquia visual E a ordem das chamadas: uma reordenacao acidental de
-    colunas passaria pela checagem de fonte e apareceria so aqui.
+    colunas passaria por qualquer checagem de fonte e apareceria so aqui.
+
+    D28 ACRESCENTOU A TRADUCAO DE VOLTA A TELA, e isso REVOGA a ultima
+    assercao que este teste fazia. D21.2 tinha tirado "3 a cada 10 carros que
+    entram na oficina" da Tela 1, e o teste anterior exigia a ausencia dela.
+    Com a tela espelhando o PDF, ela volta — no MESMO cartao de apoio em que o
+    documento a mostra, e nao mais como manchete de 48px. O que D21.2 decidiu
+    (que ela nao ABRE o resultado) continua de pe; o que ela decidiu (que ela
+    nao existe na tela) nao.
     """
     at = _preencher_cenario_base(_app())
     texto = _texto(at)
 
-    for rotulo in (
+    # A ordem inteira do resultado, e nao so a dos tres numeros: e a mesma
+    # sequencia que `apresentacao.Apresentacao` declara e o PDF imprime.
+    sequencia = [
         "Faturamento adicional",
         "Margem de contribuição adicional",
         "Mark up da operação",
-    ):
+        "O que isso significa na oficina",
+        "Nova margem com refil",
+        "Margem de contribuição no ano: hoje e com o refil",
+        "Os três cenários medidos na carteira",
+        "Como o resultado varia com o aproveitamento",
+        "As premissas desta simulação",
+        "O que esta simulação ainda não considera",
+    ]
+    for rotulo in sequencia:
         assert rotulo in texto, rotulo
 
-    posicoes = [
-        texto.index("Faturamento adicional"),
-        texto.index("Margem de contribuição adicional"),
-        texto.index("Mark up da operação"),
-    ]
+    posicoes = [texto.index(rotulo) for rotulo in sequencia]
     assert posicoes == sorted(posicoes), (
-        "a ordem na tela precisa ser faturamento -> margem -> mark up"
+        "a ordem do resultado na tela precisa ser a mesma da montagem:\n"
+        + "\n".join(
+            f"  {p:>7}  {rotulo}" for p, rotulo in zip(posicoes, sequencia)
+        )
     )
 
-    # E a traducao em escala humana NAO aparece mais na tela.
-    assert "carros que entram na oficina" not in texto, (
-        "a tradução saiu da tela por D21 — ela segue no PDF e no painel de "
-        "fórmula, não aqui"
+    # E a tradução está de volta, como cartão de apoio (D28).
+    assert "3 a cada 10" in texto
+    assert "carros que entram" in texto
+
+
+def test_render_barras_a_geometria_fecha() -> None:
+    """D29 — as alturas do gráfico de barras, conferidas na aritmética.
+
+    O desenho tem DOIS sistemas de porcentagem, e trocá-los desalinha tudo sem
+    quebrar nada: `pct_*` é fração do plot (a altura fixa da coluna) e manda na
+    pilha e na régua do vão; `dentro_*` é fração da PILHA e manda nos segmentos
+    empilhados. Com os dois iguais — que era a primeira versão — o rótulo do
+    vão descolava da barra que ele mede.
+
+    A pilha existe para o rótulo ficar colado no topo da barra. Com a base em
+    4,8% do plot, "R$ 99.000" aparecia a 300 px do risco que nomeava; é o
+    defeito que a captura do cliente mostrou.
+    """
+    import re
+
+    at = _preencher_cenario_base(_app())
+    barras = [b for b in _blocos(at) if "st-barras" in b]
+    assert barras, "o gráfico de barras precisa existir"
+    html = barras[0]
+
+    def alturas(classe: str) -> list[float]:
+        return [
+            float(v)
+            for v in re.findall(
+                rf'class="[^"]*{classe}[^"]*" style="height:([\d.]+)%"', html
+            )
+        ]
+
+    pilhas = alturas("st-barra-pilha")
+    assert len(pilhas) == 2, "uma pilha por barra"
+    assert pilhas[1] == pytest.approx(100.0), (
+        "a barra mais alta ocupa o plot inteiro — é ela que dá a escala"
     )
+    assert pilhas[0] < pilhas[1], "a barra de hoje é a menor no cenário base"
+
+    # Dentro da pilha empilhada, os dois segmentos fecham 100%.
+    inc = alturas("st-barra-inc")[0]
+    base_dentro = alturas("st-barra-base")
+    assert inc + base_dentro[-1] == pytest.approx(100.0, abs=0.02)
+
+    # A base da barra 1 preenche a própria pilha: as duas bases têm a MESMA
+    # altura em pixels, que é o que a nota afirma em palavras.
+    assert base_dentro[0] == pytest.approx(100.0)
+    assert pilhas[0] == pytest.approx(
+        pilhas[1] * base_dentro[-1] / 100, abs=0.02
+    ), "a base repetida precisa ter a mesma altura nas duas barras"
+
+    # E a régua do vão mede exatamente o segmento vermelho, no plot.
+    vao = float(
+        re.search(r'st-barra-delta-vao" style="height:([\d.]+)%', html).group(1)
+    )
+    assert vao == pytest.approx(pilhas[1] - pilhas[0], abs=0.02)
 
 
 def test_render_rotulo_do_anual_descreve_a_conta() -> None:

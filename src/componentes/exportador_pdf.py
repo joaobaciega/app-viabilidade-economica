@@ -74,30 +74,18 @@ from __future__ import annotations
 
 import io
 import unicodedata
-from dataclasses import replace
 from datetime import date
 
 import streamlit as st
 from fpdf import FPDF
 
-from src import formato
-from src import parametros as P
-from src.calculo import (
-    MESES_NO_ANO,
-    Entradas,
-    Resultado,
-    calcular,
-    curvas_comparadas,
-    preset_ativo,
-    rotulo_do_resultado,
-)
-from src.componentes import marcador_decisao_aberta as aberto
+from src import apresentacao
+from src.calculo import Entradas, Resultado
 from src.componentes import pdf_visual as visual
 from src.css import (
+    MARCA_BORDA,
+    MARCA_LAVADO,
     MARCA_VERMELHO,
-    SUPERFICIE_ESCURA,
-    TINTA_CLARA,
-    TINTA_CLARA_2,
     TINTA_DISCRETA,
     TINTA_PRIMARIA,
     TINTA_SECUNDARIA,
@@ -153,21 +141,47 @@ class _Documento(FPDF):
             except (RuntimeError, OSError, ValueError):
                 pass
 
-        self.set_font("Helvetica", "B", 14)
-        self.set_text_color(TINTA_PRIMARIA)
+        # O NOME DO CLIENTE ABRE O DOCUMENTO (D29). Ate aqui ele entrava no meio
+        # da linha de metadados, em 8,5pt cinza, entre a marca e a data — o
+        # cliente digitava o nome e nao encontrava: "nao aparece em nenhum
+        # lugar". Um documento personalizado e endereçado a alguem, e quem ele
+        # e vem antes do que ele e.
+        #
+        # Sem nome, o titulo sobe para o lugar do nome e nada mais muda: o
+        # documento generico continua abrindo pelo proprio titulo.
+        if self._cliente:
+            self.set_font("Helvetica", "B", 17)
+            self.set_text_color(TINTA_PRIMARIA)
+            self.cell(0, 8, _t(self._cliente), new_x="LMARGIN", new_y="NEXT")
+            self.set_font("Helvetica", "", 10.5)
+            self.set_text_color(TINTA_SECUNDARIA)
+            self.cell(
+                0,
+                5.5,
+                _t("Simulação de viabilidade — refil de palhetas"),
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
+        else:
+            self.set_font("Helvetica", "B", 14)
+            self.set_text_color(TINTA_PRIMARIA)
+            self.cell(
+                0,
+                7,
+                _t("Simulação de viabilidade — refil de palhetas"),
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
+
+        self.set_font("Helvetica", "", 8.5)
+        self.set_text_color(TINTA_DISCRETA)
         self.cell(
             0,
-            7,
-            _t("Simulação de viabilidade — refil de palhetas"),
+            5,
+            _t(f"Suicatech · Intrace AG · gerado em {date.today():%d/%m/%Y}"),
             new_x="LMARGIN",
             new_y="NEXT",
         )
-        self.set_font("Helvetica", "", 8.5)
-        self.set_text_color(TINTA_SECUNDARIA)
-        linha = f"Suicatech · Intrace AG · gerado em {date.today():%d/%m/%Y}"
-        if self._cliente:
-            linha = f"{self._cliente} · {linha}"
-        self.cell(0, 5, _t(linha), new_x="LMARGIN", new_y="NEXT")
 
         # Filete de marca, e nao um traco cinza: e o mesmo papel da barra
         # vermelha na borda dos cartoes de campo da tela (D5).
@@ -220,9 +234,10 @@ class _Documento(FPDF):
         com a ultima letra cortada — e ela e uma das que a §5.12 manda imprimir
         justamente porque ninguem estara ao lado para completar a frase.
         """
-        topo = self.get_y()
         coluna = 95.0
+        self._reservar(self._altura_da_linha(rotulo, valor, forte, coluna))
 
+        topo = self.get_y()
         self.set_font("Helvetica", "", 9.5)
         self.set_text_color(TINTA_SECUNDARIA)
         self.set_xy(_MARGEM_X, topo)
@@ -241,6 +256,43 @@ class _Documento(FPDF):
         self.set_y(max(self.get_y(), fim_do_rotulo, topo + 5.6))
         self.set_x(_MARGEM_X)
 
+    def _altura_da_linha(
+        self, rotulo: str, valor: str, forte: bool, coluna: float
+    ) -> float:
+        """Quanto o par `rotulo / valor` vai ocupar, MEDIDO antes de escrever.
+
+        `dry_run=True, output="HEIGHT"` faz o fpdf2 quebrar o texto e devolver a
+        altura sem desenhar nem mover o cursor. E a unica forma honesta de
+        saber quantas linhas um texto vai ocupar — contar caracteres erra em
+        qualquer fonte proporcional.
+        """
+        self.set_font("Helvetica", "", 9.5)
+        alto_rotulo = self.multi_cell(
+            coluna, 5.6, _t(rotulo), align="L", dry_run=True, output="HEIGHT"
+        )
+        self.set_font("Helvetica", "B" if forte else "", 10.5 if forte else 9.5)
+        alto_valor = self.multi_cell(
+            _LARGURA - coluna,
+            5.6,
+            _t(valor),
+            align="L",
+            dry_run=True,
+            output="HEIGHT",
+        )
+        return max(alto_rotulo, alto_valor, 5.6)
+
+    def _reservar(self, altura: float) -> None:
+        """Quebra a pagina ANTES do bloco, se ele nao couber inteiro.
+
+        A quebra automatica do fpdf2 age POR CELULA, e `linha()` desenha duas —
+        o rotulo numa coluna e o valor noutra, ambas comecando no mesmo `y`. Sem
+        esta reserva, um par no fim da pagina saia RASGADO: "decisão L" numa
+        pagina e "idade de recoleta não definida" na seguinte. Um rotulo sem o
+        valor dele e pior do que o par inteiro na pagina de baixo.
+        """
+        if self.get_y() + altura > self.page_break_trigger:
+            self.add_page()
+
     def paragrafo(self, texto: str, tamanho: float = 8.5) -> None:
         self.set_font("Helvetica", "", tamanho)
         self.set_text_color(TINTA_SECUNDARIA)
@@ -252,133 +304,53 @@ class _Documento(FPDF):
 def gerar_pdf(e: Entradas, r: Resultado, cliente: str = "") -> bytes:
     """Monta o PDF do cenario simulado. Aritmetica ja resolvida em `r`.
 
-    Duas paginas com papeis distintos (D24): a primeira e a leitura de relance,
-    a segunda e a auditoria. Sem resultado nao existe a primeira — o documento
+    NAO DECIDE NADA sobre o conteudo desde D28: quais blocos existem, em que
+    ordem, com que rotulo e que numero vem de `apresentacao.montar()`, que a
+    tela consome igual. Aqui so se decide GEOMETRIA — o que cabe em que pagina,
+    quantos milimetros cada peca ocupa.
+
+    Duas paginas com papeis distintos: a primeira e a leitura de relance, a
+    segunda e a auditoria. Sem resultado nao existe a primeira — o documento
     abre dizendo o que falta, e nao com um cartao de R$ 0.
     """
-    interno = (
-        e.custo_dianteiro is not None
-        or e.custo_traseiro is not None
-        or e.custo_original is not None
+    a = apresentacao.montar(e, r)
+    doc = _Documento(
+        interno=apresentacao.documento_interno(e), cliente=cliente
     )
-    doc = _Documento(interno=interno, cliente=cliente)
     doc.add_page()
 
-    if r.anual is None:
-        _abertura_sem_resultado(doc, r)
+    if a.manchete is None:
+        _abertura_sem_resultado(doc, a)
     else:
-        _pagina_de_relance(doc, e, r)
+        _pagina_de_relance(doc, a)
         doc.add_page()
-        _curva(doc, e, r)
+        _curva(doc, a)
 
-    # --- as premissas ------------------------------------------------------
-    doc.secao("As premissas desta simulação")
-    doc.linha("Pontos de venda", str(e.pontos_de_venda))
-    if e.passagens_por_ponto is not None:
-        doc.linha(
-            "Passagens por mês, por ponto de venda",
-            formato.inteiro(e.passagens_por_ponto),
-        )
-        doc.linha(
-            "Passagens por mês, no total", formato.inteiro(r.passagens_totais or 0)
-        )
-    doc.linha(
-        "Aproveitamento dianteiro",
-        f"{formato.percentual(e.aproveitamento_dianteiro)} "
-        f"({_procedencia_dianteiro(e)})",
-    )
-
-    if r.traseiro_na_conta:
-        doc.linha(
-            "Aproveitamento traseiro",
-            f"{formato.percentual(e.aproveitamento_traseiro)} "
-            f"({_procedencia_traseiro(e)})",
-        )
-    else:
-        doc.linha("Traseiro", "preço não informado — fora da conta")
-
-    # A premissa favoravel vai IMPRESSA: o documento sai da sala e ninguem
-    # estara ao lado para explicar (§5.12, mesmo princípio das decisões abertas).
-    if not P.CANIBALIZACAO_MODELADA:
-        doc.linha("Canibalização", P.TEXTO_SEM_CANIBALIZACAO)
-
-    # A operacao de hoje — a ancora
-    if r.originais_por_mes is not None:
-        doc.linha(
-            "Palhetas vendidas hoje, por mês",
-            formato.inteiro(r.originais_por_mes),
-        )
-    if e.preco_original is not None:
-        doc.linha(
-            "Preço da palheta original cobrado hoje",
-            formato.moeda_unitaria(e.preco_original),
-        )
-    if r.margem_unitaria_original is not None:
-        doc.linha(
-            "Margem unitária da palheta original",
-            formato.moeda_unitaria(r.margem_unitaria_original),
-        )
-    elif e.preco_original is not None:
-        doc.linha(
-            "Margem da palheta original",
-            "custo não informado — sem incremental",
-        )
-    if r.margem_atual is not None:
-        doc.linha(
-            "Margem mensal atual com palhetas",
-            formato.moeda_agregada(r.margem_atual),
-        )
-
-    # --- preco e custo: so em documento interno ---------------------------
-    if interno:
-        doc.secao("Preço e custo de tabela")
-        doc.paragrafo(
-            "Preço e custo vêm da tabela Suicatech vigente. Por conterem o "
-            "custo de aquisição, este documento é interno."
-        )
-        if e.preco_dianteiro is not None:
-            doc.linha(
-                "Preço ao consumidor final, por par (dianteiro)",
-                formato.moeda_unitaria(e.preco_dianteiro),
-            )
-        if e.custo_dianteiro is not None:
-            doc.linha(
-                "Custo de aquisição, por par (dianteiro)",
-                formato.moeda_unitaria(e.custo_dianteiro),
-            )
-        if e.preco_traseiro is not None:
-            doc.linha(
-                "Preço ao consumidor final, por unidade (traseiro)",
-                formato.moeda_unitaria(e.preco_traseiro),
-            )
-        if e.custo_traseiro is not None:
-            doc.linha(
-                "Custo de aquisição, por unidade (traseiro)",
-                formato.moeda_unitaria(e.custo_traseiro),
-            )
-
-    # --- o que ainda nao foi decidido -------------------------------------
-    abertas = aberto.decisoes_abertas_ativas()
-    if abertas:
-        doc.secao("O que esta simulação ainda não considera")
-        doc.paragrafo(
-            "Estes pontos não têm valor definido. O comportamento adotado é "
-            "sempre o mais conservador, nunca o mais favorável:"
-        )
-        for letra, texto in abertas:
-            doc.linha(f"decisão {letra}", texto)
+    for secao in (a.premissas, a.preco_custo, a.decisoes):
+        _secao(doc, secao)
 
     saida = io.BytesIO()
     doc.output(saida)
     return saida.getvalue()
 
 
+def _secao(doc: _Documento, secao: apresentacao.Secao | None) -> None:
+    """Titulo, nota opcional e as linhas `rotulo ... valor`."""
+    if secao is None:
+        return
+    doc.secao(secao.titulo)
+    if secao.nota:
+        doc.paragrafo(secao.nota)
+    for rotulo, valor in secao.linhas:
+        doc.linha(rotulo, valor)
+
+
 # ---------------------------------------------------------------------------
-# PAGINA 1 — a leitura de relance (D24)
+# PAGINA 1 — a leitura de relance (D24, reordenada por D26)
 # ---------------------------------------------------------------------------
 
 
-def _abertura_sem_resultado(doc: _Documento, r: Resultado) -> None:
+def _abertura_sem_resultado(doc: _Documento, a: apresentacao.Apresentacao) -> None:
     """Sem valor anual nao ha pagina de relance. Nao ha cartao de R$ 0 tambem.
 
     P9 / §6.1.9: um default de R$ 0 ancora no cenario mais favoravel possivel, e
@@ -388,134 +360,39 @@ def _abertura_sem_resultado(doc: _Documento, r: Resultado) -> None:
     doc.secao("O resultado")
     doc.set_font("Helvetica", "B", 17)
     doc.set_text_color(TINTA_PRIMARIA)
-    doc.multi_cell(
-        _LARGURA,
-        8,
-        _t(formato.traducao_por_passagem(r.traducao_fracao)),
-        align="L",
-    )
+    doc.multi_cell(_LARGURA, 8, _t(a.traducao), align="L")
     doc.ln(2)
-    doc.paragrafo(
-        "A simulação está incompleta: faltam as passagens por mês ou o preço e "
-        "o custo do refil. Nenhum valor é exibido no lugar — um default de R$ 0 "
-        "ancoraria no cenário mais favorável possível, e seria falso."
-    )
+    doc.paragrafo(a.incompleto)
 
 
-def _pagina_de_relance(doc: _Documento, e: Entradas, r: Resultado) -> None:
-    """Manchete, apoio, barras e cenarios — nesta ordem, e ela e normativa.
-
-    A ORDEM MUDOU EM D26, a pedido do cliente: FATURAMENTO E MARGEM ADICIONAL
-    abrem o documento, lado a lado, no maior corpo da folha. A traducao em
-    escala humana desceu para os cartoes de apoio.
-
-    O que isso contraria, e que precisa ficar dito: a §5.5 e o P2 mandavam a
-    traducao vir primeiro e maior, porque "R$ 141.480 por ano" e rejeitado pelo
-    cerebro antes de ser avaliado enquanto "3 a cada 10 carros que entram" e
-    conferido pela intuicao em dois segundos. A tela ja tinha invertido isso em
-    D21; o documento era o ultimo lugar onde a ordem original sobrevivia.
+def _pagina_de_relance(doc: _Documento, a: apresentacao.Apresentacao) -> None:
+    """Manchete, apoio, barras, cenarios e cashback — a ordem vem da montagem.
 
     `test_pdf_faturamento_e_margem_abrem_o_documento` le a ordem no FLUXO DE
     CONTEUDO do PDF, e nao no codigo — reordenar estas chamadas reprova.
     """
-    _manchete(doc, r)
-    _nota_do_grupo(doc, r)
+    _manchete(doc, a)
+    _nota_do_grupo(doc, a)
     doc.ln(4)
-    _cartoes_de_apoio(doc, r)
+    _cartoes_de_apoio(doc, a)
     doc.ln(6)
-    _barras(doc, r)
-    _cenarios(doc, e, r)
-    _cashback(doc, r)
+    _barras(doc, a)
+    _cenarios(doc, a)
+    _cashback(doc, a)
 
 
-def _manchete(doc: _Documento, r: Resultado) -> None:
-    """A faixa escura de abertura: os DOIS numeros, lado a lado (D26).
-
-    Faturamento adicional a esquerda, margem de contribuicao adicional a
-    direita, no MESMO corpo — a ordem dos dois primeiros cartoes da tela (D21,
-    normativa). O documento e a lembranca da tela: inverter aqui faria o cliente
-    procurar no papel o numero que ficou noutro lugar.
-
-    A GRANDEZA DE CADA UM VAI NO ROTULO, e nao so na nota de rodape do grupo:
-    sao duas contas diferentes no mesmo tamanho, e a §4 exige que todo resultado
-    financeiro diga qual conta ele e. "Faturamento" nao e "margem".
-    """
-    faturamento_mensal = r.faturamento_refil or 0.0
-
+def _manchete(doc: _Documento, a: apresentacao.Apresentacao) -> None:
+    """A faixa escura de abertura: os DOIS numeros, lado a lado (D26)."""
+    if a.manchete is None:
+        return
+    esquerda, direita = a.manchete
     y = visual.manchete_dupla(
-        doc,
-        _MARGEM_X,
-        doc.get_y(),
-        _LARGURA,
-        38.0,
-        visual.KPI(
-            "Faturamento adicional",
-            formato.moeda_agregada(faturamento_mensal * MESES_NO_ANO),
-            f"{formato.moeda_agregada(faturamento_mensal)} por mês",
-        ),
-        visual.KPI(
-            "Margem de contribuição adicional",
-            formato.moeda_agregada(r.anual or 0.0),
-            f"{formato.moeda_agregada(r.incremental_mensal or 0.0)} por mês",
-        ),
+        doc, _MARGEM_X, doc.get_y(), _LARGURA, 38.0, esquerda, direita
     )
     doc.set_y(y + 1.5)
 
 
-def _cartoes_de_apoio(doc: _Documento, r: Resultado) -> None:
-    """Os tres que sobraram da abertura: mark up, traducao e o contraste do mes.
-
-    A TRADUCAO MORA AQUI DESDE D26. Ela nao saiu do documento — sairia do unico
-    lugar em que ainda existe, porque D21 ja a tinha tirado da tela. O que ela
-    perdeu foi a posicao de abertura e o corpo de 15pt; o que ela mantem e a
-    forma curta ("3 a cada 10") no lugar do numero e a frase inteira embaixo,
-    que e como o cartao de KPI e construido.
-    """
-    cartoes = [
-        _cartao_markup(r),
-        visual.KPI(
-            "O que isso significa na oficina",
-            formato.traducao_curta(r.traducao_fracao),
-            "carros que entram viram um par de refil",
-        ),
-        _cartao_hoje_versus_refil(r),
-    ]
-
-    y = visual.linha_de_kpis(doc, _MARGEM_X, doc.get_y(), _LARGURA, 26.0, cartoes)
-    doc.set_y(y)
-
-
-def _cartao_hoje_versus_refil(r: Resultado) -> visual.KPI:
-    """"NOVA MARGEM COM REFIL" — o contraste que ancora o resultado.
-
-    O ROTULO MUDOU EM D27, a pedido do cliente: era "Margem com palhetas, por
-    mês", que dizia a grandeza e o periodo mas nao dizia que o numero e o
-    cenario NOVO — o de hoje esta na linha de apoio, e os dois valores ficavam
-    sem distincao no rotulo. "Nova margem com refil" nomeia o que o numero e.
-
-    O periodo saiu do rotulo e desceu para o apoio, junto do valor de hoje:
-    "por mês · hoje R$ 3.780". Sem isso o numero grande perderia o periodo, e um
-    valor mensal lido como anual e erro de uma ordem de grandeza.
-
-    So aparece com margem da original para comparar. Sem o custo dela nao existe
-    margem dela, e comparar margem com faturamento misturaria grandezas
-    (§6.1.5) — o cartao entao declara o motivo, e nao um numero.
-    """
-    if r.margem_atual is None or r.incremental_mensal is None:
-        return visual.KPI(
-            "Nova margem com refil",
-            None,
-            "custo da original não informado",
-        )
-    total = r.margem_atual + r.incremental_mensal
-    return visual.KPI(
-        "Nova margem com refil",
-        formato.moeda_agregada(total),
-        f"por mês · hoje {formato.moeda_agregada(r.margem_atual)}",
-    )
-
-
-def _nota_do_grupo(doc: _Documento, r: Resultado) -> None:
+def _nota_do_grupo(doc: _Documento, a: apresentacao.Apresentacao) -> None:
     """Qual periodo e qual conta, logo abaixo da manchete.
 
     "Valores anuais" nao e enfeite: os dois numeros grandes sao de 12 meses e o
@@ -526,145 +403,68 @@ def _nota_do_grupo(doc: _Documento, r: Resultado) -> None:
     doc.set_font("Helvetica", "", 7.5)
     doc.set_text_color(TINTA_DISCRETA)
     doc.cell(
-        _LARGURA,
-        4,
-        _t(
-            f"Valores anuais · {rotulo_do_resultado(r)} · {P.rotulo_do_anual()}"
-        ),
-        new_x="LMARGIN",
-        new_y="NEXT",
+        _LARGURA, 4, _t(a.nota_do_grupo), new_x="LMARGIN", new_y="NEXT"
     )
 
 
-def _cartao_markup(r: Resultado) -> visual.KPI:
-    # O APOIO NOMEIA A CONTA, e nao e decoracao (§4). "108%" ao lado de dois
-    # valores em reais convida a leitura de MARGEM percentual, que e outra
-    # conta — `(faturamento - custo) / faturamento` — e daria 52% no mesmo
-    # cenario. A linha embaixo do numero e o que impede a troca.
-    if r.markup_operacao is not None:
-        return visual.KPI(
-            "Mark up da operação",
-            formato.markup_percentual(r.markup_operacao),
-            "(faturamento − custo) ÷ custo",
-        )
-    # Sem custo total nao ha o que dividir. Um "1,0" ali significaria "vende ao
-    # preco de custo", que e uma afirmacao que ninguem fez (§6.1.9, P9).
-    return visual.KPI(
-        "Mark up da operação", None, "sem custo total para dividir"
+def _cartoes_de_apoio(doc: _Documento, a: apresentacao.Apresentacao) -> None:
+    """Mark up, traducao em escala humana e a nova margem com refil."""
+    y = visual.linha_de_kpis(
+        doc, _MARGEM_X, doc.get_y(), _LARGURA, 26.0, list(a.apoio)
     )
+    doc.set_y(y)
 
 
-def _barras(doc: _Documento, r: Resultado) -> None:
+def _barras(doc: _Documento, a: apresentacao.Apresentacao) -> None:
     """O comparativo anual em barras. So com margem da original para comparar."""
-    if r.margem_atual is None or r.anual is None:
+    if a.barras is None:
         return
 
-    hoje_anual = r.margem_atual * MESES_NO_ANO
-    doc.secao("Margem de contribuição no ano: hoje e com o refil")
-
+    b = a.barras
+    doc.secao(a.titulo_barras)
     y = visual.barras_hoje_versus_refil(
         doc,
         _MARGEM_X,
         doc.get_y(),
         _LARGURA,
-        60.0,
-        hoje=hoje_anual,
-        incremental=r.anual,
-        rotulo_hoje=formato.moeda_agregada(hoje_anual),
-        rotulo_refil=formato.moeda_agregada(hoje_anual + r.anual),
-        # `moeda_agregada` ja traz o sinal de menos quando o valor e negativo
-        # (§5.5). O "+" so entra quando ha o que somar — senao a linha sairia
-        # "+ −R$ 36.828".
-        rotulo_incremental=(
-            f"+ {formato.moeda_agregada(r.anual)}"
-            if r.anual >= 0
-            else formato.moeda_agregada(r.anual)
-        ),
+        66.0,
+        hoje=b.hoje,
+        incremental=b.incremental,
+        rotulo_hoje=b.rotulo_hoje,
+        rotulo_refil=b.rotulo_refil,
+        rotulo_incremental=b.rotulo_incremental,
+        nome_hoje=b.nome_hoje,
+        nome_refil=b.nome_refil,
     )
     doc.set_y(y)
-    doc.paragrafo(
-        "A base das duas barras é a mesma de propósito: nenhuma venda de refil "
-        f"é descontada da palheta original — {P.TEXTO_SEM_CANIBALIZACAO}. O "
-        "segmento de cima é o que entra."
-        if r.anual >= 0
-        else "A base das duas barras é a mesma de propósito: nenhuma venda de "
-        f"refil é descontada da palheta original — {P.TEXTO_SEM_CANIBALIZACAO}. "
-        "Com este preço e este custo, o refil fica abaixo do que a palheta "
-        "original já entrega — o vão tracejado é a diferença."
+    doc.paragrafo(b.nota)
+
+
+def _cenarios(doc: _Documento, a: apresentacao.Apresentacao) -> None:
+    """As tres faixas medidas da carteira, com a simulada destacada."""
+    if not a.cenarios:
+        return
+
+    doc.secao(a.titulo_cenarios)
+    y = visual.tiras_de_cenario(
+        doc, _MARGEM_X, doc.get_y(), _LARGURA, 26.0, list(a.cenarios)
     )
-
-
-def _cenarios(doc: _Documento, e: Entradas, r: Resultado) -> None:
-    """As tres faixas medidas da carteira, com a simulada destacada.
-
-    RECALCULA cada preset a partir das MESMAS entradas — mesmo preco, mesmo
-    custo, mesma operacao —, trocando so o par de aproveitamento. E o mesmo
-    caminho que os botoes de cenario da tela percorrem (§5.3): um preset e um
-    PAR medido, e aplicar um escreve as duas grandezas.
-
-    O pessimista entra e ocupa o mesmo espaco. Ver `pdf_visual.tiras_de_cenario`.
-    """
-    if r.anual is None:
-        return
-
-    ativo = preset_ativo(e)
-    itens: list[visual.Cenario] = []
-
-    for preset in P.PRESETS:
-        simulado = calcular(
-            replace(
-                e,
-                aproveitamento_dianteiro=preset.dianteiro,
-                aproveitamento_traseiro=preset.traseiro,
-            )
-        )
-        if simulado.anual is None:
-            continue
-        pp_d = formato.percentual(preset.dianteiro)
-        pp_t = formato.percentual(preset.traseiro)
-        itens.append(
-            visual.Cenario(
-                rotulo=preset.rotulo,
-                aproveitamento=f"{pp_d} dianteiro · {pp_t} traseiro",
-                valor=formato.moeda_agregada(simulado.anual),
-                apoio=f"por ano · {formato.moeda_agregada(simulado.anual / MESES_NO_ANO)}/mês",
-                ativo=preset.nome == ativo,
-            )
-        )
-
-    if not itens:
-        return
-
-    doc.secao("Os três cenários medidos na carteira")
-    y = visual.tiras_de_cenario(doc, _MARGEM_X, doc.get_y(), _LARGURA, 26.0, itens)
     doc.set_y(y + 1)
-
-    if ativo is None:
-        nota = (
-            f"Esta simulação usa {formato.percentual(e.aproveitamento_dianteiro)} "
-            "de aproveitamento dianteiro, ajustado na reunião — entre os "
-            f"cenários acima. {P.LEGENDA_PRESETS_DIANTEIRO}."
-        )
-    else:
-        nota = (
-            f"O cenário simulado nesta reunião está destacado. "
-            f"{P.LEGENDA_PRESETS_DIANTEIRO}."
-        )
-    doc.paragrafo(nota)
+    doc.paragrafo(a.nota_cenarios)
 
 
-def _cashback(doc: _Documento, r: Resultado) -> None:
+def _cashback(doc: _Documento, a: apresentacao.Apresentacao) -> None:
     """A linha do cashback: ACRESCENTA, nunca subtrai (§6.1.7, plano decisao A).
 
     Declara quem paga. NUNCA quanto isso custa a Suicatech — esse numero nao
     existe nem como campo (§6.1.9).
     """
-    if not r.cashback_total:
+    if a.cashback is None:
         return
 
     x, y = _MARGEM_X, doc.get_y() + 2
     altura = 15.0
-    visual.cartao(doc, x, y, _LARGURA, altura, fundo="#FDF3F5", borda="#F2CFD6")
+    visual.cartao(doc, x, y, _LARGURA, altura, fundo=MARCA_LAVADO, borda=MARCA_BORDA)
     doc.set_draw_color(MARCA_VERMELHO)
     doc.set_line_width(1.0)
     doc.line(x + 0.5, y + 2, x + 0.5, y + altura - 2)
@@ -672,30 +472,17 @@ def _cashback(doc: _Documento, r: Resultado) -> None:
     doc.set_xy(x + 5, y + 2.5)
     doc.set_font("Helvetica", "B", 10)
     doc.set_text_color(TINTA_PRIMARIA)
-    doc.cell(
-        _LARGURA - 10,
-        4.5,
-        _t(
-            f"{formato.moeda_agregada(r.cashback_total)}/mês de cashback para "
-            f"sua equipe"
-        ),
-    )
+    doc.cell(_LARGURA - 10, 4.5, _t(a.cashback.total))
+
     doc.set_xy(x + 5, y + 7.5)
     doc.set_font("Helvetica", "", 7.5)
     doc.set_text_color(TINTA_SECUNDARIA)
-    doc.cell(
-        _LARGURA - 10,
-        3.6,
-        _t("pago pela Suicatech, não sai da sua margem"),
-    )
-    detalhe = " · ".join(
-        f"{nome} {formato.moeda_agregada(valor)}/mês"
-        for nome, valor in r.cashback_por_destinatario
-    )
-    if detalhe:
+    doc.cell(_LARGURA - 10, 3.6, _t(a.cashback.nota))
+
+    if a.cashback.rateio:
         doc.set_xy(x + 5, y + 11)
         doc.set_font("Helvetica", "B", 7.5)
-        doc.cell(_LARGURA - 10, 3.6, _t(detalhe))
+        doc.cell(_LARGURA - 10, 3.6, _t(a.cashback.rateio))
     doc.set_y(y + altura)
 
 
@@ -704,136 +491,34 @@ def _cashback(doc: _Documento, r: Resultado) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _curva(doc: _Documento, e: Entradas, r: Resultado) -> None:
-    """A curva inteira, com marcador na posicao simulada. Gemeo da §5.11.
-
-    "O cliente ve o intervalo completo SEM INTERAGIR" — no papel isso vale
-    ainda mais, porque nao ha slider nenhum para arrastar.
-
-    A curva plota a MESMA GRANDEZA da manchete. Com margem da original ela
-    mostra o TOTAL das duas linhas e o vao entre elas e o incremental; sem ela,
-    volta a uma linha so, plotando o incremental — o app nao inventa margem
-    para a original.
-    """
-    if r.anual is None:
+def _curva(doc: _Documento, a: apresentacao.Apresentacao) -> None:
+    """A curva inteira, com marcador na posicao simulada. Gemeo da §5.11."""
+    if a.curva is None:
         return
 
-    lo, hi = P.SLIDER_DOMINIO
-    pontos, base = curvas_comparadas(e)
-    if not pontos:
-        return
-
-    atual_y = (base + r.anual) if base is not None else r.anual
-    valores = [valor for _, valor in pontos] + (
-        [base] if base is not None else []
-    )
-    ticks = _ticks_do_eixo(min(valores), max(valores))
-
-    doc.secao("Como o resultado varia com o aproveitamento")
-    congelado = (
-        f"traseiro fixo em {formato.percentual(e.aproveitamento_traseiro)}"
-        if r.traseiro_na_conta
-        else "traseiro fora da conta"
-    )
-    doc.paragrafo(
-        f"{congelado} · só o dianteiro varia. "
-        + (
-            "A distância entre as duas linhas é a margem adicional."
-            if base is not None
-            else "A linha é a margem de contribuição do refil."
-        ),
-        tamanho=8,
-    )
+    c = a.curva
+    doc.secao(a.titulo_curva)
+    doc.paragrafo(c.subtitulo, tamanho=8)
 
     y = visual.curva(
         doc,
         _MARGEM_X,
         doc.get_y(),
         _LARGURA,
-        58.0,
-        pontos=pontos,
-        dominio_x=(lo, hi),
-        base=base,
-        atual_x=e.aproveitamento_dianteiro * 100,
-        atual_y=atual_y,
-        rotulo_atual=formato.moeda_agregada(atual_y),
-        rotulo_base="só com a palheta original" if base is not None else None,
-        ticks_y=ticks,
-        marcas_x=[preset.dianteiro * 100 for preset in P.PRESETS],
+        48.0,
+        pontos=list(c.pontos),
+        dominio_x=c.dominio_x,
+        base=c.base,
+        atual_x=c.atual_x,
+        atual_y=c.atual_y,
+        rotulo_atual=c.rotulo_atual,
+        rotulo_base=c.rotulo_base,
+        ticks_y=list(c.ticks),
+        marcas_x=list(c.marcas_x),
     )
     doc.set_y(y + 2)
-    _frase_do_cruzamento(doc, pontos, base)
-
-
-def _ticks_do_eixo(piso: float, teto: float) -> list[tuple[float, str]]:
-    """Os ticks do eixo Y, com a forma ABREVIADA — mas so quando ela distingue.
-
-    `moeda_curta` arredonda por construcao, e numa faixa estreita ela colapsa:
-    R$ 1.000, R$ 1.050 e R$ 1.100 viram tres ticks lendo "R$ 1 mil". Tres
-    ticks identicos em alturas diferentes nao sao uma regua — sao uma
-    contradicao no desenho.
-
-    Quando a forma curta repete, o eixo cai para o numero inteiro. Ele e mais
-    largo, mas numa faixa estreita o numero tambem e curto, entao o custo de
-    espaco que justifica abreviar simplesmente nao existe ali.
-    """
-    brutos = visual.ticks_de_eixo(piso, teto)
-    curtos = [formato.moeda_curta(valor) for valor in brutos]
-    if len(set(curtos)) == len(curtos):
-        return list(zip(brutos, curtos))
-    return [(valor, formato.moeda_agregada(valor)) for valor in brutos]
-
-
-def _frase_do_cruzamento(
-    doc: _Documento, pontos: list[tuple[float, float]], base: float | None
-) -> None:
-    """"a partir de X% o refil supera o que ha hoje" — se houver um X.
-
-    Sem cruzamento no domínio, DIZ isso, em vez de sugerir que existe. Mesma
-    regra de `grafico_sensibilidade._frase_do_cruzamento`.
-    """
-    if base is None:
-        return
-
-    cruzamento = next((pp for pp, total in pontos if total > base), None)
-    if cruzamento is None:
-        doc.paragrafo(
-            "O refil não supera a palheta original em nenhum ponto da faixa — "
-            "confira preço e custo das duas categorias.",
-            tamanho=8,
-        )
-    elif cruzamento <= P.SLIDER_DOMINIO[0]:
-        doc.paragrafo(
-            "O refil supera a palheta original em toda a faixa de "
-            "aproveitamento.",
-            tamanho=8,
-        )
-    else:
-        doc.paragrafo(
-            f"A partir de {int(cruzamento)}% de aproveitamento o refil passa a "
-            "render mais que continuar só com a palheta original.",
-            tamanho=8,
-        )
-
-
-def _procedencia_dianteiro(e: Entradas) -> str:
-    nome = preset_ativo(e)
-    if nome is None:
-        return "ajustado na reunião"
-    preset = P.preset_por_nome(nome)
-    if preset and preset.origem_dianteiro == "carteira_medida":
-        return "medido em 15+ concessionárias da carteira Suicatech"
-    return "derivado — não medido"
-
-
-def _procedencia_traseiro(e: Entradas) -> str:
-    nome = preset_ativo(e)
-    if nome is None:
-        return "ajustado na reunião"
-    preset = P.preset_por_nome(nome)
-    if preset and preset.origem_traseiro == "carteira_medida":
-        return "medido na carteira Suicatech"
-    return "derivado do dianteiro na mesma proporção — não medido"
+    if c.frase:
+        doc.paragrafo(c.frase, tamanho=8)
 
 
 def nome_do_arquivo(cliente: str, dia: date | None = None) -> str:

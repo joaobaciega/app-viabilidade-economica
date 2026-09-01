@@ -189,6 +189,48 @@ def test_pdf_com_nome_do_cliente() -> None:
     assert "Concession" in texto
 
 
+def test_pdf_o_nome_do_cliente_ABRE_o_documento() -> None:
+    """D29 — o documento e endereçado, e a quem ele e vem antes do que ele e.
+
+    O nome ja entrava no PDF antes, mas DENTRO da linha de metadados, em 8,5pt
+    cinza, entre a marca e a data: "Concessionária Exemplo · Suicatech · Intrace
+    AG · gerado em…". O cliente digitava o nome e nao encontrava — *"ele pede o
+    nome do cliente, mas nao aparece em nenhum lugar essa informacao"*.
+
+    Agora ele e a PRIMEIRA linha de texto do documento, em 17pt, e o titulo
+    desce para subtitulo. Tres coisas travadas aqui:
+      1. o nome vem ANTES do titulo no fluxo de conteudo
+      2. ele e um texto PROPRIO, e nao um pedaco da linha de metadados
+      3. repete em TODAS as paginas — o header roda em cada uma, e uma folha
+         solta de um documento personalizado tem de dizer de quem ela e
+    """
+    cliente = "Concessionária Exemplo"
+    dados = _pdf(cliente=cliente)
+    texto = _texto_do_pdf(dados)
+
+    assert texto.index(cliente) < texto.index("Simulação de viabilidade"), (
+        "o nome do cliente abre o documento, antes do título"
+    )
+    assert f"{cliente} · Suicatech" not in texto, (
+        "o nome não pode voltar para dentro da linha de metadados"
+    )
+    assert texto.count(cliente) == _paginas(dados) == 2, (
+        "o nome repete em todas as páginas: uma folha solta precisa dizer de "
+        "quem ela é"
+    )
+
+
+def test_pdf_sem_nome_do_cliente_abre_pelo_titulo() -> None:
+    """Sem nome, nada muda: o documento generico continua abrindo pelo titulo.
+
+    O `if` do cabecalho existe para isso — nao para deixar um espaco vazio
+    onde o nome estaria.
+    """
+    texto = _texto_do_pdf(_pdf())
+    assert texto.index("Simulação de viabilidade") < texto.index("Suicatech ·")
+    assert "Suicatech · Intrace AG · gerado em" in texto
+
+
 # ---------------------------------------------------------------------------
 # D24 — o documento visual
 # ---------------------------------------------------------------------------
@@ -308,6 +350,56 @@ def test_pdf_transcreve_o_travessao_em_vez_de_apagar() -> None:
     assert "viabilidade  refil" not in texto, "o travessão virou buraco"
 
 
+def test_pdf_par_rotulo_valor_nunca_e_rasgado_entre_paginas() -> None:
+    """D28 — o par `rótulo / valor` migra INTEIRO, ou não migra.
+
+    `linha()` desenha DUAS células que começam no mesmo `y`: o rótulo numa
+    coluna e o valor noutra. A quebra automática do fpdf2 age por célula, então
+    um par no fim da página saía rasgado — "decisão L" numa página e "idade de
+    recoleta não definida" na seguinte, cada uma com o cabeçalho do documento
+    entre elas. Um rótulo sem o valor dele é pior do que o par inteiro na
+    página de baixo.
+
+    Só apareceu quando a seção de decisões cresceu uma linha, em D28. Antes
+    disso o conteúdo cabia, e nenhum teste olhava para a costura.
+    """
+    from src.componentes.exportador_pdf import _Documento
+
+    doc = _Documento(interno=False, cliente="")
+    doc.add_page()
+    doc.set_y(doc.page_break_trigger - 3)  # não cabe nem uma linha
+    antes = doc.page_no()
+    doc.linha(
+        "decisão L", "idade de recoleta não definida — idade exibida em dias"
+    )
+    assert doc.page_no() == antes + 1, (
+        "o par não coube: ele tinha de migrar inteiro para a página seguinte"
+    )
+
+    # E no documento real: entre um rótulo e o valor dele nunca aparece o
+    # cabeçalho, que é o que uma quebra no meio do par produziria.
+    from src import apresentacao
+    from src.componentes.pdf_visual import texto as transcrever
+
+    e = entradas_do_caso("T1")
+    a = apresentacao.montar(e, calcular(e))
+    texto = _texto_do_pdf(_pdf("T1"))
+
+    # O cursor anda em ordem, e começa no título da seção: procurar o rótulo
+    # desde o início do documento acharia outra ocorrência dele — a legenda de
+    # procedência da página 1 abre com "Aproveitamento dianteiro medido em…".
+    for secao in (a.premissas, a.preco_custo, a.decisoes):
+        assert secao is not None
+        cursor = texto.index(transcrever(secao.titulo))
+        for rotulo, valor in secao.linhas:
+            i = texto.index(transcrever(rotulo), cursor)
+            j = texto.index(transcrever(valor), i)
+            assert "Simulação de viabilidade" not in texto[i:j], (
+                f"o par {rotulo!r} / {valor!r} foi rasgado entre páginas"
+            )
+            cursor = j
+
+
 def test_pdf_valor_longo_nao_e_cortado() -> None:
     """`linha` quebra o valor. Era um `cell` de largura 0, que corta.
 
@@ -326,7 +418,7 @@ def test_pdf_eixo_da_curva_sempre_tem_escala() -> None:
     intervalo e arredondava para cima, o que pode DOBRAR o passo: numa faixa de
     R$ 45 mil a R$ 390 mil ela produzia um unico tick.
     """
-    from src.componentes.pdf_visual import ticks_de_eixo
+    from src.apresentacao import ticks_de_eixo
 
     faixas = [
         (45_360, 390_240),
@@ -349,10 +441,10 @@ def test_pdf_rotulos_do_eixo_nunca_se_repetem() -> None:
     `moeda_curta` arredonda por construcao; numa faixa estreita ela colapsa, e
     o eixo cai para o numero inteiro.
     """
-    from src.componentes.exportador_pdf import _ticks_do_eixo
+    from src.apresentacao import rotulos_do_eixo
 
     for piso, teto in ((1_000, 1_200), (45_360, 390_240), (0, 141_480)):
-        rotulos = [rotulo for _, rotulo in _ticks_do_eixo(piso, teto)]
+        rotulos = [rotulo for _, rotulo in rotulos_do_eixo(piso, teto)]
         assert len(set(rotulos)) == len(rotulos), f"{piso}..{teto}: {rotulos}"
 
 

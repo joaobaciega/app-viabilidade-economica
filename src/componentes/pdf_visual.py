@@ -40,10 +40,14 @@ nao cabe em vez de apagar — ver a tabela `_TRANSCRICAO`.
 from __future__ import annotations
 
 import unicodedata
-from dataclasses import dataclass
 
 from fpdf import FPDF
 
+# As pecas vem de `src/apresentacao.py`, que e quem decide o que o resultado
+# tem. Este modulo NAO declara tipo proprio de cartao nem de cenario: dois
+# dataclasses com os mesmos campos em arquivos diferentes e a forma mais
+# discreta de a tela e o papel divergirem (D28).
+from src.apresentacao import Cartao, Cenario
 from src.css import (
     GRADE,
     MARCA_BORDA,
@@ -182,58 +186,42 @@ def rotulo_de_secao(doc: FPDF, conteudo: str, tinta: str = TINTA_DISCRETA) -> No
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class KPI:
-    """Um cartao de resultado. `valor=None` desenha o cartao SEM numero.
+def kpi(
+    doc: FPDF, x: float, y: float, largura: float, altura: float, dado: Cartao
+) -> None:
+    """Um cartao de apoio. CLARO — o escuro e a manchete, que e outra peca.
 
-    Cartao sem numero e um estado legitimo e obrigatorio (§6.1.9, P9): o mark up
-    nao existe quando o custo total e zero, e um "1,0" ali significaria "vende
-    ao preco de custo" — uma afirmacao que ninguem fez. O cartao entao mostra o
-    MOTIVO no lugar do numero, exatamente como `_cartao_sem_numero` na tela.
+    `dado.valor is None` desenha o cartao SEM numero, e isso e estado legitimo e
+    obrigatorio (§6.1.9, P9): o mark up nao existe quando o custo total e zero,
+    e um "0%" ali significaria "vende ao preco de custo" — uma afirmacao que
+    ninguem fez. O cartao mostra entao o MOTIVO no lugar do numero.
     """
-
-    rotulo: str
-    valor: str | None
-    apoio: str
-    principal: bool = False
-
-
-def kpi(doc: FPDF, x: float, y: float, largura: float, altura: float, dado: KPI) -> None:
-    escuro = dado.principal
-    cartao(
-        doc,
-        x,
-        y,
-        largura,
-        altura,
-        fundo=SUPERFICIE_ESCURA if escuro else SUPERFICIE,
-        borda=None if escuro else TRACO,
-    )
+    cartao(doc, x, y, largura, altura, fundo=SUPERFICIE, borda=TRACO)
 
     interno = 4.0
     util = largura - interno * 2
 
     doc.set_xy(x + interno, y + interno)
     doc.set_font("Helvetica", "B", 6.5)
-    doc.set_text_color(TINTA_CLARA_2 if escuro else TINTA_DISCRETA)
+    doc.set_text_color(TINTA_DISCRETA)
     doc.set_char_spacing(0.4)
     doc.multi_cell(util, 3.2, texto(dado.rotulo.upper()), align="L")
     doc.set_char_spacing(0)
 
     if dado.valor is not None:
         corpo = _fonte_que_cabe(doc, dado.valor, util, maximo=19, minimo=10)
-        doc.set_text_color(TINTA_CLARA if escuro else TINTA_PRIMARIA)
+        doc.set_text_color(TINTA_PRIMARIA)
         doc.set_xy(x + interno, y + altura - interno - 4 - corpo * 0.36)
         doc.cell(util, corpo * 0.36, texto(dado.valor))
 
     doc.set_font("Helvetica", "", 7.5)
-    doc.set_text_color(TINTA_CLARA_2 if escuro else TINTA_SECUNDARIA)
+    doc.set_text_color(TINTA_SECUNDARIA)
     doc.set_xy(x + interno, y + altura - interno - 3.6)
     doc.cell(util, 3.6, texto(dado.apoio))
 
 
 def linha_de_kpis(
-    doc: FPDF, x: float, y: float, largura: float, altura: float, dados: list[KPI]
+    doc: FPDF, x: float, y: float, largura: float, altura: float, dados: list[Cartao]
 ) -> float:
     """Os cartoes lado a lado. Devolve o y logo abaixo deles."""
     if not dados:
@@ -251,8 +239,8 @@ def manchete_dupla(
     y: float,
     largura: float,
     altura: float,
-    esquerda: KPI,
-    direita: KPI,
+    esquerda: Cartao,
+    direita: Cartao,
 ) -> float:
     """DOIS numeros do mesmo tamanho, lado a lado, na faixa escura de abertura.
 
@@ -325,6 +313,8 @@ def barras_hoje_versus_refil(
     rotulo_hoje: str,
     rotulo_refil: str,
     rotulo_incremental: str,
+    nome_hoje: str,
+    nome_refil: str,
 ) -> float:
     """Duas barras na MESMA grandeza: margem anual hoje e margem anual com refil.
 
@@ -430,9 +420,9 @@ def barras_hoje_versus_refil(
     doc.set_font("Helvetica", "", 7.5)
     doc.set_text_color(TINTA_SECUNDARIA)
     doc.set_xy(x1 - 8, base_y + 1.5)
-    doc.multi_cell(largura_barra + 16, 3.4, texto("hoje, só com a palheta original"), align="C")
+    doc.multi_cell(largura_barra + 16, 3.4, texto(nome_hoje), align="C")
     doc.set_xy(x2 - 8, base_y + 1.5)
-    doc.multi_cell(largura_barra + 16, 3.4, texto("com o refil"), align="C")
+    doc.multi_cell(largura_barra + 16, 3.4, texto(nome_refil), align="C")
 
     # --- a anotacao do vao: o incremental, medido no desenho ---------------
     #
@@ -462,15 +452,6 @@ def barras_hoje_versus_refil(
 # ---------------------------------------------------------------------------
 # Tiras de cenario — os tres presets, lado a lado
 # ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Cenario:
-    rotulo: str
-    aproveitamento: str
-    valor: str
-    apoio: str
-    ativo: bool = False
 
 
 def tiras_de_cenario(
@@ -549,53 +530,9 @@ def tiras_de_cenario(
 # ---------------------------------------------------------------------------
 
 
-# Passos "redondos", como fracao da potencia de dez da faixa. Uma regua de
-# `R$ 47.160 / R$ 94.320` ninguem usa de relance, e a regua existe justamente
-# para ser lida de relance.
-_PASSOS_REDONDOS = (0.1, 0.2, 0.25, 0.5, 1.0, 2.0)
-_TICKS_DEMAIS = 8
-
-
-def ticks_de_eixo(piso: float, teto: float, quantidade: int = 4) -> list[float]:
-    """Onde os ticks caem. Nao decide como eles LEEM — isso e de quem chama.
-
-    ESCOLHE O PASSO PELA CONTAGEM QUE ELE PRODUZ, e nao pela largura do
-    intervalo. A primeira versao derivava o passo de `faixa / (quantidade - 1)`
-    e arredondava para cima ate o proximo passo redondo — e o arredondamento
-    para cima pode DOBRAR o passo. Numa faixa de R$ 45 mil a R$ 390 mil isso
-    saltava de R$ 100 mil para R$ 200 mil e o eixo saia com UM tick so, o que
-    deixa de ser regua: sem um segundo tick nao ha escala, so um numero solto ao
-    lado de uma linha.
-
-    Aqui cada passo candidato e testado, e vence o que chega mais perto de
-    `quantidade` ticks dentro do intervalo.
-    """
-    import math
-
-    if teto - piso < 1e-9 or quantidade < 2:
-        return [piso]
-
-    magnitude = 10 ** math.floor(math.log10(teto - piso))
-    melhor: list[float] = []
-    melhor_erro: int | None = None
-
-    for escala in _PASSOS_REDONDOS:
-        passo = escala * magnitude
-        valores: list[float] = []
-        atual = math.ceil(piso / passo) * passo
-        while atual <= teto + 1e-9:
-            valores.append(atual)
-            if len(valores) > _TICKS_DEMAIS:
-                break
-            atual += passo
-
-        if len(valores) < 2 or len(valores) > _TICKS_DEMAIS:
-            continue
-        erro = abs(len(valores) - quantidade)
-        if melhor_erro is None or erro < melhor_erro:
-            melhor, melhor_erro = valores, erro
-
-    return melhor or [piso, teto]
+# `ticks_de_eixo` MUDOU DE CASA em D28: onde os ticks caem e decisao de
+# apresentacao, nao de tinta, e a tela precisa dela tanto quanto o papel. Vive
+# agora em `src/apresentacao.py`, que e puro; `curva()` recebe os ticks prontos.
 
 
 def curva(

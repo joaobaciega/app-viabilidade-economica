@@ -78,26 +78,6 @@ AREA_MARCADOR = 201
 LIMIAR_VIRA_ROTULO = 0.82
 
 
-def _texto_do_titulo(e: Entradas, duas_linhas: bool) -> tuple[str, str]:
-    """O subtitulo DECLARA o que esta congelado e em que valor."""
-    if duas_linhas:
-        titulo = "Margem de contribuição anual: com refil × só com a palheta original"
-    else:
-        titulo = "Margem incremental anual por aproveitamento dianteiro"
-
-    if traseiro_entra_na_conta(e):
-        congelado = (
-            f"traseiro fixo em {formato.percentual(e.aproveitamento_traseiro)}"
-        )
-    else:
-        congelado = "traseiro fora da conta"
-
-    subtitulo = f"{congelado} · demais premissas conforme a faixa acima"
-    if duas_linhas:
-        subtitulo = "a distância entre as duas linhas é o incremental · " + subtitulo
-    return titulo, subtitulo
-
-
 def _eixo_x(lo: int, hi: int) -> alt.X:
     return alt.X(
         "aproveitamento:Q",
@@ -327,67 +307,18 @@ def grafico(e: Entradas, r: Resultado) -> None:
         .encode(x=eixo_x, y=eixo_y, text="rotulo:N")
     )
 
-    titulo, subtitulo = _texto_do_titulo(e, duas)
+    # SEM TITULO NO GRAFICO desde D28: quem nomeia o que esta plotado e o
+    # subtitulo da secao, que vem de `apresentacao` e e o MESMO texto que o PDF
+    # imprime acima da curva dele. Um titulo proprio aqui seria um segundo
+    # texto, escrito noutro lugar, dizendo a mesma coisa — e a forma mais
+    # comum de a tela e o papel divergirem sem ninguem perceber.
     figura = (
         alt.layer(*camadas)
-        .properties(
-            height=ALTURA_PLOT,
-            title=alt.TitleParams(
-                titulo,
-                subtitle=subtitulo,
-                anchor="start",
-                color=TINTA_PRIMARIA,
-                fontSize=T_ROTULO,
-                fontWeight=600,
-                subtitleColor=TINTA_SECUNDARIA,
-                subtitleFontSize=T_PREMISSAS,
-            ),
-        )
+        .properties(height=ALTURA_PLOT)
         .configure_view(stroke=None)
     )
 
     st.altair_chart(figura, width="stretch")
-    _frase_do_cruzamento(e, base)
-
-
-def _frase_do_cruzamento(e: Entradas, base: float | None) -> None:
-    """"a partir de X% o refil supera o que ele tem hoje" — se houver um X.
-
-    Procura o primeiro aproveitamento em que a linha do refil passa da linha da
-    original. Se nao houver cruzamento no dominio, DIZ isso em vez de sugerir
-    que existe: o app nao promete um ponto de virada que a conta nao tem.
-    """
-    if base is None:
-        return
-
-    pontos, _ = curvas_comparadas(e)
-    if not pontos:
-        return
-
-    cruzamento = next((pp for pp, total in pontos if total > base), None)
-    if cruzamento is None:
-        st.markdown(
-            '<p class="st-legenda-bloco">O refil <b>não supera</b> a palheta '
-            "original em nenhum ponto da faixa — confira preço e custo das duas "
-            "categorias.</p>",
-            unsafe_allow_html=True,
-        )
-        return
-
-    if cruzamento <= P.SLIDER_DOMINIO[0]:
-        st.markdown(
-            '<p class="st-legenda-bloco">O refil supera a palheta original em '
-            "<b>toda a faixa</b> de aproveitamento.</p>",
-            unsafe_allow_html=True,
-        )
-        return
-
-    st.markdown(
-        f'<p class="st-legenda-bloco">A partir de <b>{int(cruzamento)}% de '
-        f"aproveitamento</b> o refil passa a render mais que continuar só com "
-        f"a palheta original.</p>",
-        unsafe_allow_html=True,
-    )
 
 
 def tabela_da_curva(e: Entradas, r: Resultado) -> None:

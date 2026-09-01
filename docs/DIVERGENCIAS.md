@@ -685,6 +685,174 @@ a deixa atrás do conteúdo.
 `test_T14_moeda_curta_espelha_o_eixo_da_tela` e
 `test_T14_abreviacao_de_moeda_e_so_para_eixo`.
 
+### D29 — O gráfico de barras maior, e o PDF endereçado ao cliente
+
+Dois pedidos do cliente em 27/08/2026, com uma captura da tela anexada:
+*"deixe esse gráfico maior, para ficar mais evidente o aumento que a nossa
+solução traz"* e *"deixe o PDF personalizado também, mostrando no topo o nome do
+cliente (atualmente ele pede o nome do cliente, mas não aparece em nenhum lugar
+essa informação)"*.
+
+#### 1. As barras
+
+| | Antes | Agora |
+|---|---|---|
+| Altura do plot | 210 px | **340 px** (220 px no celular) |
+| Largura da barra | 150 px | **190 px** |
+| Valor da barra | 22 px | **36 px** (`--t-anual`) |
+| Rótulo do vão | 22 px | **36 px**, régua de 3 px |
+| No PDF | 60 mm | **66 mm** |
+
+É a peça cujo **tamanho carrega o argumento**: a razão entre as duas alturas é o
+que se lê antes de qualquer número, e num plot baixo uma base pequena vira um
+risco de 10 px que não se compara com nada. A altura mora num token
+(`--altura-barras`) porque o plot, a régua do vão e o espaçador do delta têm de
+ter a **mesma** altura — se divergirem, o rótulo descola da barra que mede.
+
+**A captura mostrou um defeito de paridade que nenhum teste pegava.** O valor
+`R$ 99.000` aparecia no **topo da coluna**, e não acima da barra dele: com a base
+em 4,8% do plot, o rótulo ficava a ~300 px do risco que nomeava. No PDF ele
+sempre esteve colado (`base_y - altura - faixa_valor`); na tela, não.
+
+- **Correção:** uma `.st-barra-pilha` com a altura do valor, e o rótulo
+  posicionado sobre ela (`bottom: 100%`). Isso criou **dois sistemas de
+  porcentagem**, e confundi-los desalinha o desenho sem quebrar nada:
+
+  | | Fração de quê | Manda em |
+  |---|---|---|
+  | `pct_*` | o **plot** (altura fixa da coluna) | altura de cada pilha, as duas faixas da régua do vão |
+  | `dentro_*` | a **pilha** | os segmentos empilhados |
+
+- **Travado por:** `test_render_barras_a_geometria_fecha`, que confere a
+  aritmética no HTML: a barra mais alta ocupa o plot inteiro, os segmentos
+  fecham 100% da pilha, **a base repetida tem a mesma altura nas duas barras**
+  (que é o que a nota afirma em palavras) e a régua do vão mede exatamente o
+  segmento vermelho.
+
+#### 2. O nome do cliente
+
+Ele **já entrava** no PDF — dentro da linha de metadados, em 8,5 pt cinza, entre
+a marca e a data: `Concessionária Exemplo · Suicatech · Intrace AG · gerado em…`.
+Tecnicamente presente; na prática invisível, e o cliente relatou exatamente isso.
+
+```
+[logo]
+Concessionária Exemplo                          <- 17 pt, tinta primária
+Simulação de viabilidade — refil de palhetas    <- 10,5 pt, subtítulo
+Suicatech · Intrace AG · gerado em 01/09/2026   <- 8,5 pt, discreta
+────────────────────────────────────────────── filete de marca
+```
+
+Um documento personalizado é **endereçado a alguém**, e quem ele é vem antes do
+que ele é. Sem nome, o título sobe para o lugar do nome e nada mais muda — o
+`if` existe para isso, não para deixar um espaço vazio.
+
+O nome **repete em todas as páginas**, porque o `header` roda em cada uma: uma
+folha solta de um documento personalizado tem de dizer de quem ela é.
+
+**Travado por:** `test_pdf_o_nome_do_cliente_ABRE_o_documento` (vem antes do
+título, não é pedaço da linha de metadados, e aparece uma vez por página) e
+`test_pdf_sem_nome_do_cliente_abre_pelo_titulo`.
+
+#### O custo em altura, e o que foi cedido
+
+O cabeçalho ficou ~6 mm mais alto **em cada página**, e as barras +6 mm. Isso
+levou o documento a 3 páginas, com `decisão L` sozinha na última. A curva da
+página 2 desceu de 54 mm para **48 mm** e o documento voltou a duas.
+
+Não foi o conteúdo que cedeu: a curva continua com o domínio inteiro, os
+mesmos ticks e o mesmo marcador. Cedeu a folga vertical dela, que era a única
+peça da página 2 com folga a ceder.
+
+### D28 — A tela de resultados e o PDF passaram a ser a mesma coisa
+
+Pedido do cliente em 27/08/2026: *"ajuste a tela de resultados… ela deve ser
+exatamente igual o que aparece no PDF. Com todos os gráficos, tabelas e KPIs.
+Exatamente igual."*
+
+Entre D24 e D27 o documento ganhou manchete dupla, barras, cenários, curva
+vetorial, premissas e decisões impressas. **A tela ficou com três cartões e um
+gráfico.** O PDF virou o produto e a tela, o rascunho dele.
+
+#### O que a tela ganhou
+
+| | Antes | Agora |
+|---|---|---|
+| Abertura | três cartões (faturamento, margem, mark up) | **manchete escura** com os dois números lado a lado, no maior corpo da tela |
+| Apoio | — | três cartões: mark up, tradução, nova margem com refil |
+| Comparativo anual | — | **barras hoje × com o refil**, empilhadas |
+| Cenários | — | **as três faixas medidas**, com a simulada destacada |
+| Curva | gráfico com título próprio | mesmo gráfico, com o título e o subtítulo **da montagem** |
+| Premissas | só a faixa de premissas | **a seção inteira**, como no papel |
+| Preço e custo de tabela | só os campos de entrada | a seção, quando há custo informado |
+| Decisões em aberto | só o marcador ⚠️ | **a seção inteira** |
+
+#### Como "exatamente igual" virou verificável
+
+Escrever a mesma coisa em dois arquivos não é paridade — é duas chances de
+divergir. A decisão saiu dos dois desenhos e foi para um lugar só:
+
+```
+src/apresentacao.py          <- decide QUAIS blocos, EM QUE ordem,
+    montar(entradas, r)         com QUE rótulo e QUE número já formatado
+        │
+        ├── componentes/bloco_resultado.py    desenha em HTML/CSS
+        └── componentes/exportador_pdf.py     desenha em vetor
+```
+
+`apresentacao.py` é **puro** — não importa streamlit nem fpdf, nem
+indiretamente —, e a ordem de leitura é literalmente a ordem dos campos do
+dataclass `Apresentacao`. Reordenar lá reordena os dois desenhos de uma vez.
+
+`test_paridade_tela_e_pdf` percorre tudo que a montagem produz e exige que cada
+texto apareça **nos dois** desenhos, em quatro cenários (completo, com cashback,
+margem negativa, sem custo da original). Ele chama o desenhador da tela com um
+`st` de mentira e extrai o texto do PDF de verdade: comparar o modelo consigo
+mesmo não provaria nada. `test_paridade_cobre_os_blocos_que_importam` garante
+que o caso base exercita todos os blocos — sem ele, a rede continuaria verde se
+a montagem parasse de produzir barras ou cenários.
+
+#### O que a tela tem a mais, e por quê
+
+Três peças, todas depois do resultado: o **gêmeo em tabela** da curva
+(obrigatório pela §5.11 e pela §9 — substitui o tooltip, que não existe em
+tablet e muito menos no papel), o **painel de fórmula** e a **área de
+exportação**. Nenhuma é resultado; são ferramenta de operação.
+
+#### O que isto revogou
+
+| | |
+|---|---|
+| **D21.2** *(parcialmente)* | "A tradução em escala humana saiu da tela." Ela **volta** — no mesmo cartão de apoio em que o PDF a mostra, e não como manchete de 48 px. O que D21.2 decidiu sobre ela **não abrir** o resultado continua de pé |
+| `test_render_ordem_dos_tres_cartoes_no_artefato` | Substituído por `test_render_ordem_do_resultado_no_artefato`, que verifica a sequência **inteira** de dez blocos, e não só a dos três números. A asserção de que a tradução estava ausente foi retirada de propósito, e não por acidente |
+| `test_T1_ordem_dos_tres_cartoes_e_a_hierarquia` | Lia a **fonte** de `bloco_resultado._cartoes` por AST. A ordem mudou de casa; o teste passou a ler o **modelo montado**, que é mais forte — afirma o que sai, e vale para as duas superfícies |
+| `pdf_visual.KPI` e `pdf_visual.Cenario` | Deixaram de existir. Dois dataclasses com os mesmos campos em arquivos diferentes é a forma mais discreta de a tela e o papel divergirem |
+| Título do gráfico de sensibilidade | Saiu do Altair. Quem nomeia o que está plotado é o subtítulo da seção, que vem da montagem e é o **mesmo texto** que o PDF imprime acima da curva dele |
+
+#### O defeito que isto expôs
+
+A seção de decisões cresceu uma linha e o PDF **saltou de 2 para 4 páginas**:
+`linha()` desenha **duas** células que começam no mesmo `y`, e a quebra
+automática do fpdf2 age por célula. Um par no fim da página saía **rasgado** —
+`decisão L` numa página e `idade de recoleta não definida` na seguinte, com o
+cabeçalho do documento entre as duas.
+
+- **Correção:** `_reservar()` mede o par com `dry_run=True, output="HEIGHT"` e
+  quebra a página **antes** dele. Um rótulo sem o valor dele é pior do que o par
+  inteiro na página de baixo.
+- **Lição:** quebra automática por célula não sabe o que é um par. Todo bloco
+  que desenha duas células no mesmo `y` precisa reservar a altura antes.
+- **Travado por:** `test_pdf_par_rotulo_valor_nunca_e_rasgado_entre_paginas`,
+  que testa a costura por dentro (a reserva) e por fora (nenhum cabeçalho entre
+  um rótulo e o valor dele, em todas as seções).
+
+#### O que continua sem verificação automática
+
+O layout em si. As barras usam altura em `%` dentro de um container de altura
+fixa, e o `style` inline que carrega essas alturas atravessa o sanitizador do
+`st.markdown` — **isso não é verificável por `pytest`**. É a mesma classe de
+defeito da §4.7, e por isso entrou como item manual 11.
+
 ### D27 — Mark up em percentual, e "Nova margem com refil"
 
 Pedido do cliente em 27/08/2026: *"coloque o mark up em % (exemplo, ao invés de
@@ -1137,6 +1305,9 @@ Não são opinião — só não são comando. `python verificar.py` os lista no 
 | 7 | **Cashback no tablet (D23).** Em 1180×820 e em 768 px: os três campos de cada categoria continuam **lado a lado**, e o título da categoria não encosta no campo de cima | | |
 | 8 | **Baixar o PDF (D23 / §4.11).** Com o resultado na tela, abrir "Levar esta simulação — PDF": o botão está em vermelho de marca, **sem nenhuma marcação impressa no rótulo**, e o toque baixa um arquivo que abre num leitor de PDF. Repetir com o nome do cliente acentuado e conferir o nome do arquivo baixado | | |
 | 9 | **O PDF impresso (D24).** Imprimir a página 1 **em preto e branco**: a segunda barra continua distinguível da primeira e as duas linhas da curva continuam distinguíveis entre si (§3.1.3 / §9.4 — a distinção não pode depender de cor) | | |
+| 11 | **O resultado na tela (D28).** Com o resultado revelado, conferir que a tela mostra, nesta ordem: manchete com os dois números, três cartões de apoio, **barras hoje × com o refil** (as alturas em proporção, e o segmento vermelho visível), os três cenários, o gráfico, a tabela, e as seções de premissas / preço e custo / decisões. **As barras dependem de `style` inline sobreviver ao `st.markdown`** — se elas saírem sem altura, é isso | | |
+| 13 | **O PDF endereçado (D29).** Gerar com nome de cliente preenchido: o nome abre o documento em 17 pt, o título vira subtítulo, e o nome **repete na página 2**. Gerar sem nome: o título volta a abrir, sem espaço vazio no lugar | | |
+| 12 | **Tela × PDF, lado a lado (D28).** Abrir o PDF da mesma simulação e comparar bloco a bloco com a tela: mesmos rótulos, mesmos números, mesma ordem | | |
 | 10 | **O PDF de uma rede grande (D24).** Simular 8+ pontos de venda: os valores de sete dígitos cabem nos cartões sem corte, e os rótulos do eixo Y da curva não se repetem | | |
 
 **Medições já conferidas no navegador** (Chrome headless, 1180×1100, 11/08/2026).

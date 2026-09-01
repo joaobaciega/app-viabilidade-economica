@@ -67,6 +67,22 @@ MANUAIS = [
         "campos de cada categoria continuam LADO A LADO.",
     ),
     (
+        "O PDF endereçado ao cliente (D29)",
+        "Gere COM o nome do cliente preenchido: ele abre o documento em 17pt, "
+        "o titulo vira subtitulo, e o nome REPETE na pagina 2. Gere SEM nome: o "
+        "titulo volta a abrir, sem espaco vazio no lugar.",
+    ),
+    (
+        "O resultado na tela, e a paridade com o PDF (D28)",
+        "Com o resultado revelado, confira a ordem: manchete com os DOIS "
+        "numeros, tres cartoes de apoio, BARRAS hoje x com o refil (alturas em "
+        "proporcao e o segmento vermelho visivel), os tres cenarios, o "
+        "grafico, a tabela, e as secoes de premissas / preco e custo / "
+        "decisoes. Depois abra o PDF da MESMA simulacao e compare bloco a "
+        "bloco. As barras dependem de `style` inline sobreviver ao "
+        "st.markdown — se sairem sem altura, e isso.",
+    ),
+    (
         "O PDF impresso em preto e branco (D24)",
         "Imprima a pagina 1 SEM COR: a segunda barra continua distinguivel da "
         "primeira, e as duas linhas da curva continuam distinguiveis entre si. "
