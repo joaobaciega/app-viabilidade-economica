@@ -246,6 +246,85 @@ minutos antes de entrar na concessionária é requisito de operação, não suge
 
 ---
 
+## 4.1 O envio do PDF por e-mail — a única configuração com segredo (D30)
+
+O botão **Enviar por e-mail** precisa de uma conta SMTP. **Ela é opcional:** sem
+ela o app sobe inteiro, o botão aparece **cinza e desabilitado** com uma linha
+abaixo dizendo que o envio não está configurado, e o botão de **baixar** o PDF —
+que é o caminho que não depende de credencial, de endereço digitado nem de o
+servidor do outro lado estar de pé — continua entregando o documento.
+
+### A conta em uso (configurada em 01/09/2026)
+
+`suicatech.com.br` roda em **Google Workspace** (MX → `aspmx.l.google.com`), e o
+SPF do domínio já inclui `_spf.google.com` — enviar por `smtp.gmail.com`
+autenticado nessa conta passa em SPF e DKIM. Login verificado contra o servidor
+real: `235 2.7.0 Accepted`.
+
+A senha **não** é a da conta: é uma **senha de aplicativo** de 16 caracteres
+(app `App de Viabilidade`), gerada em `myaccount.google.com/apppasswords` com
+verificação em duas etapas ligada. Ela não dá acesso ao Gmail pelo navegador e
+pode ser revogada nessa mesma página sem trocar a senha da conta — revogar
+derruba só o envio, e o botão volta a ficar cinza.
+
+### Onde colar
+
+No app publicado: **⋮ → Settings → Secrets**, e cole isto com a senha real no
+lugar dos 16 `x` (a senha verdadeira vive **apenas** no `secrets.toml` local e
+no painel — nunca neste arquivo, que é versionado):
+
+```toml
+[email]
+host = "smtp.gmail.com"
+porta = 587
+usuario = "joao@suicatech.com.br"
+senha = "xxxxxxxxxxxxxxxx"
+remetente = "Suicatech · Intrace AG <joao@suicatech.com.br>"
+```
+
+> **O `remetente` tem de carregar o mesmo endereço do `usuario`.** O Gmail
+> reescreve o `From` para a conta autenticada se forem diferentes: o e-mail
+> chega, mas vindo de outro endereço, e nada avisa. O nome de exibição antes do
+> `<...>` é livre.
+
+O painel salva e reinicia o app sozinho. **Não existe arquivo no servidor** — o
+`.streamlit/secrets.toml` é só para a sua máquina, está no `.gitignore`, e o
+modelo versionado é `.streamlit/secrets.toml.exemplo`.
+
+> **Armadilha do Windows, encontrada ao testar isto (01/09/2026):** criar o
+> `secrets.toml` local com `Out-File -Encoding utf8` do PowerShell grava um
+> **BOM** no começo do arquivo, e o parser de TOML do Streamlit reprova com
+> `Found invalid character in key name: '['`. O app não quebra — ele apenas se
+> comporta como se não houvesse configuração nenhuma, que é o sintoma mais
+> confuso possível. Salve pelo VS Code (**UTF-8**, sem BOM) ou use
+> `[System.IO.File]::WriteAllText(...)`. No painel do Cloud isso não acontece.
+
+### O que costuma dar errado
+
+| Sintoma | Causa quase sempre |
+|---|---|
+| "O envio não foi concluído" | senha da conta em vez de **senha de aplicativo**. O Gmail recusa a senha normal — gere uma em `myaccount.google.com/apppasswords`, cole **sem os espaços** que ele mostra |
+| O botão continua **cinza** no app publicado | os Secrets foram salvos só na máquina local. O painel do Cloud é um passo separado, e sem ele o link publicado não envia |
+| O botão fica cinza mesmo com tudo preenchido | falta uma das chaves. Configuração pela metade conta como ausente, de propósito: meia configuração quebraria só na hora do envio, na frente do cliente |
+| Demora e falha | porta errada. **587** é STARTTLS, **465** é SMTPS. O app escolhe o modo pela porta, e espera no máximo 15 s antes de desistir |
+| Chega, mas vindo de outro endereço | `remetente` com endereço diferente de `usuario` — o Gmail reescreve o `From` em silêncio |
+
+### Três coisas que valem saber sobre esta configuração
+
+1. **Todo envio sai com cópia para `joao@suicatech.com.br`** (decisão do cliente,
+   01/09/2026). Como o app não guarda nada em disco, essa cópia é o único
+   registro do que saiu. Como o remetente **é** essa mesma conta, a cópia chega
+   na Caixa de entrada enquanto o Gmail guarda o original em *Enviados*.
+2. **O link é aberto, sem login.** Quem tiver o link pode disparar um e-mail a
+   partir dessa conta. O conteúdo é sempre o PDF do cenário que a própria pessoa
+   preencheu, e há teto de 5 envios por sessão. A conta em uso é pessoal, e o
+   caminho de reação, se isso virar problema, é revogar a senha de aplicativo —
+   um clique, sem mexer na senha da conta.
+3. **Cota do Google Workspace:** ~2.000 destinatários por dia. Muito acima do uso
+   real (uma simulação por visita), mas é o teto que existe.
+
+---
+
 ## 5. Publicar dados novos (Telas 2 e 3)
 
 O snapshot é um arquivo no repositório, então publicar dado é um commit:

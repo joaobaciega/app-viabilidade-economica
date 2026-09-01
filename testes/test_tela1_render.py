@@ -871,6 +871,233 @@ def test_render_exportar_pdf_so_com_o_resultado_na_tela() -> None:
     assert not at.get("download_button")
 
 
+# ---------------------------------------------------------------------------
+# D30 — enviar o documento por e-mail
+#
+# O transporte e trocado por um duplo em todos estes testes. O que se verifica
+# aqui e a UNICA coisa que `test_email.py` nao alcanca: quando o transporte e
+# chamado, e quantas vezes. `test_email.py` cobre o que sai; estes cobrem o
+# gatilho — que e onde o Streamlit morde, porque ele reexecuta o script inteiro
+# a cada toque na tela.
+# ---------------------------------------------------------------------------
+
+
+def _envio_falso(monkeypatch, *, configurado: bool = True) -> list[dict]:
+    """Substitui o transporte e devolve a lista de chamadas registradas."""
+    from src.componentes import enviador_email
+
+    chamadas: list[dict] = []
+
+    def _enviar(**argumentos):
+        chamadas.append(argumentos)
+        return None
+
+    monkeypatch.setattr(enviador_email, "enviar", _enviar)
+    monkeypatch.setattr(enviador_email, "configurado", lambda: configurado)
+    return chamadas
+
+
+def test_render_enviar_email_campo_e_botao_com_o_resultado_na_tela(
+    monkeypatch,
+) -> None:
+    """O pedido do cliente: um botao ABAIXO do de exportar, com campo de e-mail.
+
+    A ordem importa e e a razao do teste ler as duas pecas juntas: o botao de
+    baixar e o caminho que nao depende de credencial nem de endereco digitado,
+    e ele vem primeiro.
+    """
+    _envio_falso(monkeypatch)
+    at = _preencher_cenario_base(_app())
+
+    campo = at.text_input(key="email_destino")
+    assert campo.label == "E-mail para receber o documento"
+    assert campo.value in (None, ""), "o campo abre vazio, como todo campo (§5.2)"
+
+    assert at.get("download_button"), "o botão de baixar continua sendo o piso"
+
+    enviar = [b for b in at.button if b.key == "botao_enviar"]
+    assert enviar, [b.key for b in at.button]
+    assert enviar[0].label == "Enviar por e-mail"
+    assert enviar[0].proto.disabled, "sem endereço não há o que enviar"
+
+
+def test_render_enviar_email_sem_configuracao_mostra_o_botao_desabilitado(
+    monkeypatch,
+) -> None:
+    """Sem credencial o botao APARECE CINZA, com o motivo escrito abaixo.
+
+    Pedido do cliente em 01/09/2026, depois de ver a versao anterior. Aquela
+    desenhava o CAMPO de e-mail e depois sumia com o botao — um campo pedindo um
+    endereco que nao tem para onde ir, que e o pior dos dois mundos. A forma
+    nova e a mesma do botao "Mostrar Resultado" (D21): visivel, desabilitado, e
+    o que falta dito em TEXTO, nunca em cor (§3.1.2, §9.4).
+
+    Este e o estado do deploy antes de alguem colar os Secrets no painel.
+    """
+    _envio_falso(monkeypatch, configurado=False)
+    at = _preencher_cenario_base(_app())
+
+    enviar = [b for b in at.button if b.key == "botao_enviar"]
+    assert enviar, "o botão precisa existir mesmo sem credencial"
+    assert enviar[0].proto.disabled, "sem credencial ele não pode ser tocável"
+
+    assert at.get("download_button"), "o documento continua ao alcance de um toque"
+    assert "ainda não está configurado" in _texto(at)
+    assert not at.exception, at.exception
+    assert not at.error and not at.warning
+
+
+def test_render_enviar_email_pede_confirmacao_antes_de_sair(monkeypatch) -> None:
+    """Decisao do cliente, 01/09/2026 — o custo so sai com um segundo toque.
+
+    Repare que TODO documento desta tela e interno: `custo_original` e
+    obrigatorio (D21) e `documento_interno` olha para ele. A confirmacao,
+    portanto, e o caminho normal e nao a excecao — e e por isso que ela precisa
+    ser barata: duas colunas, 52 px, sem caixa de alerta (§5.9).
+    """
+    chamadas = _envio_falso(monkeypatch)
+    at = _preencher_cenario_base(_app())
+
+    at.text_input(key="email_destino").set_value("gerente@concessionaria.test").run()
+    at.button(key="botao_enviar").click().run()
+
+    assert not chamadas, "nada pode sair antes da confirmação"
+
+    chaves = {b.key for b in at.button}
+    assert "botao_confirmar_envio" in chaves, chaves
+    assert "botao_cancelar_envio" in chaves, chaves
+
+    texto = _texto(at)
+    assert "documento interno" in texto
+    # O endereco vem escrito: digitar torto e o unico jeito de este envio vazar
+    # a tabela de precos, e ler o endereco e a unica defesa contra isso.
+    assert "gerente@concessionaria.test" in texto
+    assert not at.error and not at.warning
+
+
+def test_render_enviar_email_confirmado_chama_o_transporte_uma_unica_vez(
+    monkeypatch,
+) -> None:
+    """O defeito que este teste existe para impedir: o documento sair duas vezes.
+
+    O Streamlit reexecuta o script INTEIRO a cada interacao. Se o pedido de
+    envio continuasse de pe depois de atendido, qualquer toque seguinte — abrir
+    um expander, mexer num slider — remandaria o mesmo PDF. `mexer no cenario`
+    abaixo e exatamente essa cena.
+    """
+    chamadas = _envio_falso(monkeypatch)
+    at = _preencher_cenario_base(_app())
+
+    at.text_input(key="email_destino").set_value("gerente@concessionaria.test").run()
+    at.button(key="botao_enviar").click().run()
+    at.button(key="botao_confirmar_envio").click().run()
+
+    assert len(chamadas) == 1, chamadas
+    assert chamadas[0]["destino"] == "gerente@concessionaria.test"
+    assert chamadas[0]["documento"].startswith(b"%PDF")
+    assert chamadas[0]["nome_arquivo"].endswith(".pdf")
+
+    texto = _texto(at)
+    assert "Documento enviado" in texto
+    assert "joao@suicatech.com.br" in texto
+
+    # E agora a cena do defeito: mexer no cenario nao pode mandar de novo.
+    at.slider(key="conv_dianteiro").set_value(35).run()
+    assert len(chamadas) == 1, f"o documento saiu {len(chamadas)} vezes"
+
+
+def test_render_enviar_email_cancelar_nao_envia(monkeypatch) -> None:
+    """Cancelar volta ao botao, sem mandar nada e sem apagar o endereco."""
+    chamadas = _envio_falso(monkeypatch)
+    at = _preencher_cenario_base(_app())
+
+    at.text_input(key="email_destino").set_value("gerente@concessionaria.test").run()
+    at.button(key="botao_enviar").click().run()
+    at.button(key="botao_cancelar_envio").click().run()
+
+    assert not chamadas
+    assert "botao_enviar" in {b.key for b in at.button}
+    assert at.text_input(key="email_destino").value == "gerente@concessionaria.test"
+
+
+def test_render_enviar_email_endereco_torto_nao_habilita(monkeypatch) -> None:
+    """Sem vocabulario de erro (§4): o botao apenas nao habilita, e o texto diz.
+
+    A verificacao e de FORMA e nada mais — so a entrega prova que a caixa
+    existe, e por isso nenhum texto da tela declara o endereco correto.
+    """
+    _envio_falso(monkeypatch)
+    at = _preencher_cenario_base(_app())
+
+    at.text_input(key="email_destino").set_value("gerente").run()
+    assert at.button(key="botao_enviar").proto.disabled
+    assert "Informe um endereço" in _texto(at)
+
+    at.text_input(key="email_destino").set_value("gerente@concessionaria.test").run()
+    assert not at.button(key="botao_enviar").proto.disabled
+
+
+def test_render_enviar_email_no_teto_da_sessao_o_botao_fica_cinza(
+    monkeypatch,
+) -> None:
+    """O teto do link aberto (plano §6.3), verificado no artefato.
+
+    Duas coisas ao mesmo tempo: o botao fica cinza com o motivo, e NENHUM pedido
+    fica pendente. A versao anterior saia por `return` antes de atender o pedido
+    nesse caso — uma bandeira levantada no rerun anterior ficava presa, e a tela
+    podia travar na confirmacao sem caminho de volta.
+    """
+    from src.componentes import enviador_email
+
+    chamadas = _envio_falso(monkeypatch)
+    monkeypatch.setattr(enviador_email, "LIMITE_POR_SESSAO", 1)
+
+    at = _preencher_cenario_base(_app())
+    at.text_input(key="email_destino").set_value("gerente@concessionaria.test").run()
+    at.button(key="botao_enviar").click().run()
+    at.button(key="botao_confirmar_envio").click().run()
+    assert len(chamadas) == 1
+
+    # O primeiro envio ja consumiu o teto: o botao volta cinza, dizendo por que.
+    enviar = [b for b in at.button if b.key == "botao_enviar"]
+    assert enviar and enviar[0].proto.disabled
+    assert "Limite de envios desta sessão" in _texto(at)
+
+    assert not at.session_state["envio_pedido"], "nenhum pedido pode ficar preso"
+    assert len(chamadas) == 1, "nada mais pode sair depois do teto"
+
+
+def test_render_novo_cliente_limpa_o_endereco_de_email(monkeypatch) -> None:
+    """§5.2 — o endereco e da visita, como o nome do cliente.
+
+    Deixar preenchido mostraria ao proximo gerente para quem o anterior pediu o
+    documento, e a linha "Documento enviado para ..." carrega esse endereco na
+    tela.
+    """
+    _envio_falso(monkeypatch)
+    at = _preencher_cenario_base(_app())
+
+    at.text_input(key="email_destino").set_value("gerente@concessionaria.test").run()
+    at.button(key="botao_enviar").click().run()
+    at.button(key="botao_confirmar_envio").click().run()
+    assert "Documento enviado" in _texto(at)
+
+    at.button(key="btn_novo_cliente").click().run()
+
+    # O CAMPO NAO EXISTE MAIS NA TELA — `novo cliente` limpa os obrigatorios e a
+    # area de exportacao inteira sai com o resultado (D21). A verificacao e no
+    # estado, que e onde o vazamento moraria: um widget ausente nesta carga volta
+    # com o valor antigo assim que os campos forem preenchidos de novo.
+    assert not [t for t in at.text_input if t.key == "email_destino"]
+    assert at.session_state["email_destino"] == ""
+    assert at.session_state["envio_estado"] is None
+    assert "Documento enviado" not in _texto(at)
+
+    # E ao refazer um cenario, o campo volta VAZIO — que e a prova de verdade.
+    _preencher_cenario_base(at)
+    assert at.text_input(key="email_destino").value in (None, "")
+
+
 def test_render_painel_de_formula_existe_e_abre_fechado() -> None:
     """§5.8: prova em um toque, fechada por padrao."""
     at = _preencher_cenario_base(_app())

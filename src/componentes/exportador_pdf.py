@@ -68,6 +68,28 @@ nao por adjetivo. Em particular:
 
 A TINTA MORA EM `pdf_visual.py`. Este arquivo decide O QUE entra, em que ordem e
 com que texto; aquele sabe desenhar cartao, barra e curva e nada mais.
+
+D30 — O DOCUMENTO PASSOU A SAIR POR E-MAIL
+==========================================
+
+Pedido do cliente em 01/09/2026: *"um botao — que ficara abaixo do botao de
+exportar para PDF — que abrira um campo pedindo para preencher um email... que
+dispare um email para o endereco informado com o PDF da simulacao e uma mensagem
+pre-programada."*
+
+O TRANSPORTE MORA EM `enviador_email.py`, pela mesma razao que a tinta mora em
+`pdf_visual.py`. Aqui se decide QUANDO o envio pode sair e o que a tela diz sobre
+ele; la se sabe falar SMTP e nada mais.
+
+O BOTAO DE BAIXAR CONTINUA SENDO O PISO. Ele nao depende de credencial, de
+endereco digitado nem de servidor do outro lado: e o unico caminho que entrega o
+documento em qualquer ambiente. O envio fica ABAIXO dele e em contorno, nao em
+preenchimento — e a linha de falha do envio aponta de volta para ele.
+
+TODO DOCUMENTO DESTA TELA E INTERNO, e isso muda o desenho: `documento_interno`
+olha tambem para `custo_original`, que e OBRIGATORIO desde D21. Nao existe
+cenario com resultado na tela cujo PDF nao carregue custo, e portanto a
+confirmacao do envio nao e caso de excecao — e o caminho normal.
 """
 
 from __future__ import annotations
@@ -79,9 +101,9 @@ from datetime import date
 import streamlit as st
 from fpdf import FPDF
 
-from src import apresentacao
+from src import apresentacao, estado
 from src.calculo import Entradas, Resultado
-from src.componentes import pdf_visual as visual
+from src.componentes import enviador_email, pdf_visual as visual
 from src.css import (
     MARCA_BORDA,
     MARCA_LAVADO,
@@ -91,7 +113,7 @@ from src.css import (
     TINTA_SECUNDARIA,
     TRACO,
 )
-from src.estado import K_NOME_CLIENTE
+from src.estado import K_EMAIL, K_NOME_CLIENTE
 from src.icones import svg
 
 _LARGURA = 190
@@ -554,7 +576,7 @@ def nome_do_arquivo(cliente: str, dia: date | None = None) -> str:
 
 
 def bloco_exportar(e: Entradas, r: Resultado) -> None:
-    """A area de exportacao. Fechada por padrao, como o painel de formula.
+    """A area de exportacao e de envio. Fechada por padrao, como a formula.
 
     O DOCUMENTO E MONTADO A CADA RERUN, e nao atras de um botao "gerar". Sao
     ~19 ms por PDF nesta maquina, contra um toque a mais na frente do cliente e
@@ -577,7 +599,12 @@ def bloco_exportar(e: Entradas, r: Resultado) -> None:
         )
         cliente = str(st.session_state.get(K_NOME_CLIENTE) or "").strip()
 
-        if e.custo_dianteiro is not None or e.custo_traseiro is not None:
+        # A MESMA funcao que `gerar_pdf` consulta para decidir a marca-d'agua.
+        # Antes de D30 havia aqui um teste proprio sobre os dois campos de custo,
+        # e duas regras para a mesma pergunta e como a linha da tela acabaria
+        # dizendo uma coisa e o documento saindo com outra.
+        interno = apresentacao.documento_interno(e)
+        if interno:
             st.caption(
                 "O documento incluirá o custo de aquisição e sairá marcado como "
                 "**documento interno** — o custo é o preço de venda da Suicatech."
@@ -614,3 +641,189 @@ def bloco_exportar(e: Entradas, r: Resultado) -> None:
                 mime="application/pdf",
                 width="stretch",
             )
+
+        _bloco_enviar(documento, cliente, interno)
+
+
+# ---------------------------------------------------------------------------
+# D30 — ENVIAR O DOCUMENTO POR E-MAIL
+# ---------------------------------------------------------------------------
+
+
+def _bloco_enviar(documento: bytes, cliente: str, interno: bool) -> None:
+    """Campo de e-mail e botao de envio, abaixo do botao de baixar.
+
+    ABAIXO, E EM SEGUNDO PLANO VISUAL, de proposito. O botao vermelho de baixar
+    e o caminho que funciona sempre: nao depende de credencial, de rede alem do
+    proprio websocket nem de o endereco estar certo. O envio e conveniencia; a
+    entrega em maos continua sendo o piso, e por isso a linha de falha aponta de
+    volta para o botao de cima em vez de pedir para tentar de novo.
+
+    O DOCUMENTO E O MESMO BYTES QUE O BOTAO DE CIMA ENTREGA — recebido por
+    parametro, nunca remontado. Uma segunda chamada a `gerar_pdf` aqui abriria a
+    porta para o anexo divergir do arquivo baixado, que e exatamente o defeito
+    que D23 evitou ao nao esconder a geracao atras de um botao "gerar".
+    """
+    with st.container(key="enviar"):
+        st.text_input(
+            "E-mail para receber o documento",
+            key=K_EMAIL,
+            placeholder="nome@empresa.com.br",
+        )
+        destino = str(st.session_state.get(K_EMAIL) or "").strip()
+
+        # O pedido pendente e atendido AGORA, antes de qualquer botao ser
+        # desenhado de novo — senao a linha de desfecho apareceria um rerun
+        # atrasada, embaixo de um botao que ja voltou ao estado normal.
+        #
+        # E ele e chamado INCONDICIONALMENTE, inclusive sem credencial e no teto.
+        # A versao anterior saia por `return` antes daqui nesses dois casos, e um
+        # pedido feito no rerun anterior ficava PRESO: a bandeira nunca era
+        # apagada e a tela podia travar na confirmacao, sem caminho de volta
+        # alem de "Cancelar". Quem cuida dos dois casos e o proprio
+        # `_atender_pedido`.
+        _atender_pedido(documento, cliente, destino, interno)
+
+        if estado.envio_pendente() and interno and not estado.envio_confirmado():
+            _confirmacao_de_documento_interno(destino)
+        else:
+            falta = _o_que_falta(destino)
+            st.button(
+                "Enviar por e-mail",
+                key="botao_enviar",
+                on_click=estado.pedir_envio,
+                disabled=falta is not None,
+                width="stretch",
+            )
+            if falta:
+                st.caption(falta)
+
+        _linha_de_desfecho(destino)
+
+
+def _o_que_falta(destino: str) -> str | None:
+    """Por que o botao esta cinza — ou `None` quando ele pode ser tocado.
+
+    O BOTAO EXISTE SEMPRE, DESABILITADO ENQUANTO FALTA ALGO (pedido do cliente,
+    01/09/2026). E a mesma forma do botao "Mostrar Resultado" da §8.1: visivel,
+    cinza, com o motivo escrito abaixo. Antes disto o bloco desenhava o CAMPO de
+    e-mail e depois sumia com o botao, o que e o pior dos dois mundos — um campo
+    pedindo um endereco que nao tem para onde ir, e foi exatamente essa a
+    confusao relatada.
+
+    O motivo vai no TEXTO, nunca na cor (§3.1.2, §9.4): nao existe vermelho de
+    alerta neste projeto, e o cinza tracejado sobrevive a daltonismo.
+    """
+    if not enviador_email.configurado():
+        return (
+            "O envio por e-mail ainda não está configurado. O botão acima "
+            "continua entregando o documento."
+        )
+    if estado.envios_feitos() >= enviador_email.LIMITE_POR_SESSAO:
+        return (
+            "Limite de envios desta sessão alcançado. O documento continua no "
+            "botão acima, para baixar e anexar."
+        )
+    if not enviador_email.endereco_aceitavel(destino):
+        return "Informe um endereço para habilitar o envio."
+    return None
+
+
+def _confirmacao_de_documento_interno(destino: str) -> None:
+    """O segundo toque, e o unico lugar em que o endereco aparece ANTES do envio.
+
+    Decisao do cliente (01/09/2026): com custo de aquisicao o documento sai por
+    e-mail assim mesmo, com o custo dentro — mas nao sem um segundo toque. O
+    endereco vem escrito aqui porque digitar errado e a unica forma pela qual
+    esse envio vaza a tabela de precos da Suicatech, e ler o endereco em voz
+    alta e a unica defesa que existe contra digitacao.
+
+    Sem componente de alerta (§5.9): uma caixa amarela na frente do gerente
+    transforma uma conferencia de rotina em vexame publico.
+    """
+    st.caption(
+        f"Este documento inclui o custo de aquisição e sai marcado como "
+        f"**documento interno**. Ao confirmar, segue assim para **{destino}**, "
+        f"com cópia para {enviador_email.COPIA_FIXA}."
+    )
+    confirmar, cancelar = st.columns([3, 2], gap="small")
+    with confirmar:
+        st.button(
+            "Confirmar o envio",
+            key="botao_confirmar_envio",
+            on_click=estado.confirmar_envio,
+            width="stretch",
+        )
+    with cancelar:
+        st.button(
+            "Cancelar",
+            key="botao_cancelar_envio",
+            on_click=estado.cancelar_envio,
+            width="stretch",
+        )
+
+
+def _atender_pedido(
+    documento: bytes, cliente: str, destino: str, interno: bool
+) -> None:
+    """Chama o transporte UMA VEZ, quando ha pedido e ele ja pode sair."""
+    if not estado.envio_pendente():
+        return
+    if interno and not estado.envio_confirmado():
+        return  # ainda falta o segundo toque
+
+    # APAGAR ANTES DE ENVIAR. O `send_message` pode levar segundos, e todo toque
+    # na tela nesse meio-tempo dispara um rerun: se o pedido continuasse de pe, o
+    # rerun mandaria o mesmo documento outra vez.
+    estado.encerrar_pedido_de_envio()
+
+    # O TETO E DECIDIDO AQUI, e nao antes de desenhar o botao, para que um pedido
+    # feito no rerun anterior seja SEMPRE consumido — apagado logo acima. Nada e
+    # registrado como desfecho: `_o_que_falta` ja poe o motivo embaixo do botao,
+    # e duas linhas dizendo a mesma coisa seria ruido. Na pratica esta guarda e
+    # defensiva: chegar ao teto ja deixa o botao cinza no mesmo rerun.
+    if estado.envios_feitos() >= enviador_email.LIMITE_POR_SESSAO:
+        return
+
+    # §7.4 — o transporte ja promete nao levantar, e esta captura e o cinto de
+    # seguranca dessa promessa: uma excecao aqui derrubaria o resultado inteiro,
+    # que ja esta na tela e e o que o cliente veio ver.
+    try:
+        motivo = enviador_email.enviar(
+            destino=destino,
+            documento=documento,
+            nome_arquivo=nome_do_arquivo(cliente),
+            cliente=cliente,
+        )
+    except Exception:  # noqa: BLE001 — ver o comentario acima
+        motivo = "transporte"
+
+    estado.registrar_envio(motivo)
+
+
+def _linha_de_desfecho(destino: str) -> None:
+    """O que aconteceu com o ultimo envio, em uma linha. Nunca uma caixa (§5.9).
+
+    A falha NAO pede para tentar de novo: manda baixar e anexar. Numa reuniao, o
+    caminho que ja funcionou uma vez vale mais que o caminho que talvez funcione
+    na segunda tentativa.
+    """
+    desfecho = st.session_state.get(estado.K_ENVIO_ESTADO)
+    if not desfecho:
+        return
+
+    if desfecho == estado.ENVIADO:
+        st.caption(
+            f"Documento enviado para **{destino}**, com cópia para "
+            f"{enviador_email.COPIA_FIXA}."
+        )
+        return
+
+    if desfecho == "endereco":
+        st.caption("O endereço informado não tem forma de e-mail.")
+        return
+
+    st.caption(
+        "O envio não foi concluído. O documento continua no botão acima, para "
+        "baixar e anexar."
+    )

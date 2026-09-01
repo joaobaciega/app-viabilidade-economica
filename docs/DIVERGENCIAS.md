@@ -685,6 +685,173 @@ a deixa atrás do conteúdo.
 `test_T14_moeda_curta_espelha_o_eixo_da_tela` e
 `test_T14_abreviacao_de_moeda_e_so_para_eixo`.
 
+### D30 — O documento passou a sair por e-mail
+
+Pedido do cliente em 01/09/2026: *"um botão — que ficará abaixo do botão de
+exportar para PDF — que abrirá um campo pedindo para preencher um email. A ideia
+é que esse botão dispare um email para o endereço informado com o PDF da
+simulação e uma mensagem pré-programada."*
+
+D23 tinha deixado o botão de baixar funcionando. O que continuava manual era o
+passo seguinte: baixar, abrir o cliente de e-mail, anexar, escrever. Na cena real
+— tablet, em pé, o gerente ao lado — esse passo **não acontece na hora**, e o
+documento que existe para sair da sala fica no disco do vendedor.
+
+| | Antes | Agora |
+|---|---|---|
+| Fim da área de exportação | `Baixar PDF do cenário` | o mesmo botão, e **abaixo dele** campo de e-mail + `Enviar por e-mail` |
+| Como o PDF chega ao cliente | o vendedor anexa à mão, depois | anexo automático, na reunião |
+| Transporte | — | `smtplib` (**biblioteca padrão** — `requirements.txt` não mudou) |
+| Segredos | nenhum, e o `.gitignore` dizia que era para continuar assim | seção `[email]` em `st.secrets`, **opcional** |
+| Cópia | — | `joao@suicatech.com.br` em **todo** envio |
+
+#### As três decisões, e por que cada uma
+
+**1. SMTP, e não uma API transacional.** Resend ou SendGrid entregam melhor e dão
+log, mas custam um pacote HTTP novo no `requirements.txt` — e este arquivo tem
+quatro linhas por um motivo declarado nele mesmo: o Community Cloud hiberna após
+12 h e cada pacote a menos é menos tempo entre o vendedor abrir o link e o cliente
+ver a tela. `smtplib` é stdlib e não pesa nada na carga. O custo aceito: a
+entregabilidade passa a depender da conta configurada.
+
+**2. O custo de aquisição vai no anexo, com um segundo toque.** Esta foi a
+decisão mais carregada, e ela é do cliente. Havia três saídas: bloquear o envio
+de documento interno, mandar uma versão sem custo, ou mandar como está com
+confirmação. **Escolhida a terceira** (cliente, 01/09/2026).
+
+O que isso significa na prática, e que merece estar escrito: **todo documento
+desta tela é interno.** `documento_interno()` olha para `custo_dianteiro`,
+`custo_traseiro` **e `custo_original`** — e `custo_original` é obrigatório desde
+D21, porque o mark up da operação inteira precisa do custo de hoje. Logo não
+existe cenário com resultado na tela cujo PDF não carregue custo. A confirmação
+não é um caso de exceção: **é o caminho normal do envio.**
+
+Duas consequências desenhadas a partir disso:
+
+- a confirmação precisa ser **barata** — duas colunas, 52 px, sem caixa de
+  alerta (§5.9). Uma caixa amarela em todo envio seria vexame público diário
+- ela **nomeia o endereço de destino**. Digitar torto é a única forma pela qual
+  este envio vaza a tabela de preços da Suicatech, e ler o endereço em voz alta
+  antes de confirmar é a única defesa que existe contra digitação
+
+**3. Cópia fixa para `joao@suicatech.com.br`.** O app não persiste nada em disco
+(§5.2, §11.1) — a cópia é o **único** registro do que saiu, e serve ao propósito
+que `exportador_pdf.py` já declarava no topo: conferir em 90 dias o realizado
+contra o simulado.
+
+#### O defeito que a stack cria aqui, e que quase não aparece em teste manual
+
+**O Streamlit reexecuta o script inteiro a cada interação.** Um envio escrito no
+corpo do script sairia de novo a cada toque posterior — abrir um expander, mexer
+num slider. O vendedor não veria nada; o cliente receberia o mesmo PDF cinco
+vezes.
+
+A defesa tem duas partes, e a **ordem** é o que a faz funcionar:
+
+1. o botão só grava um **pedido** (`on_click`), nunca envia
+2. o rerun seguinte **apaga o pedido antes** de chamar o transporte
+
+Apagar depois não resolveria: `send_message` leva segundos, e qualquer toque
+nesse meio-tempo dispara um rerun que ainda encontraria o pedido de pé.
+`test_render_enviar_email_confirmado_chama_o_transporte_uma_unica_vez` encena
+exatamente isso — envia, mexe no slider, e exige que o transporte tenha sido
+chamado uma vez só.
+
+#### O que foi assumido, e dito em voz alta
+
+- **O link é aberto, sem login** (plano §6.3). Quem tiver o link pode disparar
+  e-mail a partir da conta configurada. O conteúdo é sempre o PDF do cenário que
+  a própria pessoa preencheu — não serve de relay genérico —, e há teto de **5
+  envios por sessão**, que sobrevive ao `novo cliente` de propósito: zerá-lo ali
+  tornaria o limite contornável com um toque num botão sem confirmação. A
+  resposta de fundo seria uma senha de vendedor, e ela **não** está nesta entrega
+- **O botão de baixar continua sendo o piso.** O de enviar é contorno de marca,
+  não preenchimento (§8.3 do CSS): dois botões vermelhos empilhados brigam pela
+  mesma atenção, e o de cima é o que não depende de credencial nem de rede além
+  do próprio websocket. A linha de falha aponta **de volta para ele**, e não pede
+  para tentar de novo — numa reunião, o caminho que já funcionou vale mais que o
+  que talvez funcione na segunda tentativa
+- **Sem segredos o app sobe inteiro**, o botão de envio some e uma linha explica.
+  Configuração pela metade conta como ausente: meia configuração quebraria só na
+  hora do envio, na frente do cliente
+
+#### A revisão do mesmo dia: o botão cinza, e o campo órfão que a motivou
+
+Na primeira entrega, sem credencial o bloco desenhava o **campo de e-mail** e
+depois **sumia com o botão**, deixando uma linha explicativa. O cliente abriu o
+app e relatou exatamente o que essa forma produz: *"vi que você adicionou o
+campo, mas ainda não tem nenhum botão — só uma mensagem dizendo que ainda não
+está pronto"*.
+
+Era o pior dos dois mundos. A regra que eu estava seguindo — §10-G, *"um campo
+desabilitado com rótulo promete uma funcionalidade que não existe; ausência não
+promete nada"* — **não se aplicava aqui**, e confundi dois casos diferentes:
+
+| | Bloco de investimento (§10-G) | Envio por e-mail |
+|---|---|---|
+| A funcionalidade | **não existe** na Fase 1 | existe, testada, só sem credencial |
+| O que a ausência promete | nada, corretamente | nada — mas o **campo** continuava prometendo |
+
+Ausência só não promete nada quando some **inteira**. Meia ausência — o campo
+fica, o botão vai — pergunta uma coisa e tira o meio de responder.
+
+**Agora:** o botão existe sempre, **cinza e desabilitado**, com o motivo em
+texto logo abaixo. Isso não é forma nova neste app: é literalmente o gesto do
+botão `Mostrar Resultado` de D21 (§8.1 do CSS), que abre desabilitado com
+`Falta preencher…` embaixo. O motivo vai no **texto e nunca na cor** (§3.1.2,
+§9.4) — o desabilitado perde o contorno de marca e ganha traço tracejado, sem
+nenhum token semântico de erro, que este projeto não tem.
+
+Os quatro estados do botão:
+
+```
+credencial + endereço aceitável  → ativo
+sem credencial                   → cinza + "O envio ainda não está configurado…"
+no teto da sessão                → cinza + "Limite de envios desta sessão…"
+sem endereço                     → cinza + "Informe um endereço…"
+```
+
+#### Um defeito real que essa reorganização matou
+
+Os dois `return` antecipados (sem credencial, no teto) saíam **antes** de
+`_atender_pedido`. Um pedido de envio levantado no rerun anterior ficava então
+**preso**: a bandeira nunca era apagada, e a tela podia travar na confirmação sem
+caminho de volta além de `Cancelar`. Agora `_atender_pedido` é chamado sempre e
+é o dono do teto — o pedido é consumido em qualquer caminho.
+
+**Travado por:** `test_render_enviar_email_sem_configuracao_mostra_o_botao_desabilitado`
+e `test_render_enviar_email_no_teto_da_sessao_o_botao_fica_cinza` (que verifica as
+duas coisas ao mesmo tempo: o botão cinza **e** que nenhum pedido ficou preso).
+
+#### A conta, e o que ela decidiu sozinha
+
+Configurada em 01/09/2026: **Google Workspace**, `joao@suicatech.com.br`, senha
+de aplicativo (app `App de Viabilidade`). O DNS do domínio já fixava tudo: MX em
+`aspmx.l.google.com` e SPF com `include:_spf.google.com`, então `smtp.gmail.com`
+autenticado nessa conta passa em SPF e DKIM sem tocar em DNS. Login verificado
+contra o servidor real (`235 2.7.0 Accepted`) e um envio real conferido ponta a
+ponta.
+
+Consequência que ninguém escolheu, e que fica registrada: **o remetente é o mesmo
+endereço da `COPIA_FIXA`**. Não é defeito — o Gmail guarda o original em
+*Enviados* e a cópia chega na *Caixa de entrada*, que é onde algo é de fato visto
+e respondido. E o `remetente` **tem** de carregar o endereço da conta
+autenticada: o Gmail reescreve o `From` em silêncio quando eles diferem.
+
+#### Efeito colateral
+
+A área de exportação tinha um teste próprio sobre os dois campos de custo para
+decidir se mostrava a legenda de documento interno, enquanto `gerar_pdf` usava
+`apresentacao.documento_interno()`. Duas regras para a mesma pergunta é como a
+linha da tela acabaria dizendo uma coisa e o documento saindo com outra. Agora há
+uma só.
+
+**Travado por:** `testes/test_email.py` inteiro (16 testes, com `smtplib.SMTP`
+trocado por um duplo — anexo, destinatários, assunto, corpo, STARTTLS antes do
+login, porta 465, e as quatro falhas que **não podem levantar**),
+`test_render_enviar_email_*` (o gatilho: quando o transporte é chamado e quantas
+vezes) e `test_render_novo_cliente_limpa_o_endereco_de_email`.
+
 ### D29 — O gráfico de barras maior, e o PDF endereçado ao cliente
 
 Dois pedidos do cliente em 27/08/2026, com uma captura da tela anexada:

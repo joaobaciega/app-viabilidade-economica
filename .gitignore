@@ -2,8 +2,11 @@
 # NUNCA versionar — o repositório vai para o GitHub e o app tem link aberto
 # ---------------------------------------------------------------------------
 
-# Segredos do Streamlit. Hoje o app não usa nenhum, e é para continuar assim:
-# se algum dia usar, o arquivo fica AQUI e nunca no repositório.
+# Segredos do Streamlit. Desde D30 o app usa UM: a seção `[email]`, com as
+# credenciais SMTP do envio do PDF. O arquivo preenchido fica AQUI e nunca no
+# repositório — quem quiser saber quais chaves existem lê
+# `.streamlit/secrets.toml.exemplo`, que é versionado e não tem valor nenhum.
+# No deploy não há arquivo: as chaves vão no painel "Secrets" (docs/DEPLOY.md).
 .streamlit/secrets.toml
 *.env
 .env

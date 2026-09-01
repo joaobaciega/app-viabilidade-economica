@@ -651,6 +651,50 @@ div[data-testid="stExpander"] summary svg {{ fill: var(--marca) !important; }}
 .st-exportar-nota .st-icone {{ color: var(--marca); }}
 
 /* ===================================================================
+   8.3 ENVIAR POR E-MAIL — D30. Gancho `st-key-enviar`, de
+   st.container(key="enviar").
+
+   MESMA ALTURA DO BOTAO DE BAIXAR (52px, §3.4), PESO VISUAL MENOR: contorno
+   de marca sobre fundo claro, e nao preenchimento. Dois botoes vermelhos
+   empilhados brigam pela mesma atencao e nenhum dos dois vence — e o de cima
+   e o caminho que nunca falha por credencial errada nem por endereco digitado
+   torto. O envio e conveniencia; a entrega em maos e o piso, e a hierarquia
+   diz isso sem uma linha de texto.
+
+   O botao de CONFIRMAR o documento interno herda o mesmo tratamento: um
+   segundo toque de conferencia nao pode parecer mais urgente que a acao que
+   ele confirma. §3.1.2 continua valendo — nao existe vermelho de alerta aqui.
+   =================================================================== */
+.st-key-enviar {{ margin: 10px 0 2px !important; }}
+.st-key-enviar [data-testid="stButton"] button {{
+  min-height: 52px !important; height: 52px !important;
+  border-radius: var(--raio-campo) !important;
+  background: var(--superficie) !important;
+  border: 1.5px solid var(--marca) !important;
+  box-shadow: none !important;
+}}
+.st-key-enviar [data-testid="stButton"] button p {{
+  font-size: var(--t-rotulo) !important; font-weight: 700 !important;
+  letter-spacing: .04em; color: var(--marca-escuro) !important;
+}}
+.st-key-enviar [data-testid="stButton"] button:hover {{
+  background: var(--marca-lavado) !important;
+}}
+/* Desabilitado sem cor semantica, como o botao de acao da §8.1: perde o
+   contorno de marca e ganha traco tracejado. O motivo esta no TEXTO abaixo
+   dele, e nao na cor — o que tambem sobrevive a daltonismo (§9.4). */
+.st-key-enviar [data-testid="stButton"] button:disabled {{
+  background: var(--superficie-2) !important;
+  border: 1.5px dashed var(--traco) !important;
+}}
+.st-key-enviar [data-testid="stButton"] button:disabled p {{
+  color: var(--tinta-discreta) !important;
+}}
+/* As duas colunas da confirmacao ficam lado a lado ate o celular. Sao dois
+   toques de 52px; empilhar poria o "Cancelar" fora da dobra do expander. */
+.st-key-enviar [data-testid="stHorizontalBlock"] {{ gap: 8px !important; }}
+
+/* ===================================================================
    9. RESULTADO — TRES CARTOES. D21, e D6 no primeiro deles.
    A ordem e normativa: faturamento adicional -> margem de contribuicao
    adicional -> mark up da operacao.

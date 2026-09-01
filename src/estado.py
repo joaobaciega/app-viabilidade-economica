@@ -55,11 +55,37 @@ K_CONV_T = "conv_traseiro"  # em pontos percentuais (inteiro)
 K_CONSULTORES = "consultores_por_ponto"
 K_DIAS_UTEIS = "dias_uteis"
 K_NOME_CLIENTE = "nome_cliente"
+# D30 — para onde o documento vai. Como o nome do cliente, e dado DA VISITA: vive
+# na area de exportacao, nao na superficie de pitch, e some no `novo cliente`.
+K_EMAIL = "email_destino"
 
 # O interruptor do resultado (D21). NAO e chave de widget: e escrito por
 # `on_click` do botao "Mostrar Resultado", cuja key propria e outra. Enquanto
 # for False a tela mostra apenas os campos — nenhum numero, nenhum grafico.
 K_MOSTRAR = "mostrar_resultado"
+
+# ---------------------------------------------------------------------------
+# O ENVIO POR E-MAIL (D30) — estado de INTERFACE, nao de campo.
+#
+# Nenhuma destas chaves entra em CAMPOS_DE_SESSAO nem em _LIMPEZA: aquelas duas
+# tabelas sao a lista dos campos SENSIVEIS, o teste do checklist exige que casem
+# exatamente, e um pedido de envio pendente nao e preco nem custo. Elas seguem o
+# precedente de K_MOSTRAR — `novo_cliente()` as zera explicitamente.
+#
+# K_ENVIO_PEDIDO      o toque em "Enviar" aconteceu e ainda nao foi atendido
+# K_ENVIO_CONFIRMADO  a confirmacao do documento interno ja foi dada
+# K_ENVIO_ESTADO      o desfecho do ultimo envio, que vira a linha da tela
+# K_ENVIOS_FEITOS     quantos sairam nesta sessao, contra LIMITE_POR_SESSAO
+# ---------------------------------------------------------------------------
+
+K_ENVIO_PEDIDO = "envio_pedido"
+K_ENVIO_CONFIRMADO = "envio_confirmado"
+K_ENVIO_ESTADO = "envio_estado"
+K_ENVIOS_FEITOS = "envios_feitos"
+
+# O unico valor de K_ENVIO_ESTADO que nao vem do transporte. Todos os outros sao
+# a etiqueta de motivo que `enviador_email.enviar()` devolveu.
+ENVIADO = "enviado"
 
 # Cashback: R$ por venda, por destinatario, com linha propria para cada
 # categoria. `cashback_d_0` = Consultor no dianteiro, `_1` = Gerente, `_2` =
@@ -82,6 +108,7 @@ CAMPOS_DE_SESSAO: tuple[str, ...] = (
     K_PRECO_ORIG,
     K_CUSTO_ORIG,
     K_NOME_CLIENTE,
+    K_EMAIL,
     K_PASSAGENS,
     K_CONSULTORES,
     *CHAVES_CASHBACK_D,
@@ -181,6 +208,10 @@ _LIMPEZA: dict[str, object] = {
     K_PASSAGENS: None,
     K_CONSULTORES: None,
     K_NOME_CLIENTE: "",
+    # O endereco e de quem recebeu o documento desta visita. Deixar preenchido
+    # seria o mesmo vazamento que a §5.2 pega no preco, so que com um endereco:
+    # o proximo cliente veria para quem o anterior pediu o PDF.
+    K_EMAIL: "",
     # O cashback e por cliente: some junto (plano §1.4, "rateio
     # variavel por cargo").
     **{chave: None for chave in CHAVES_CASHBACK_D},
@@ -220,6 +251,14 @@ def novo_cliente() -> None:
     # E o resultado sai da tela: o proximo cliente comeca na area de campos, sem
     # ver o cenario do anterior (D21).
     st.session_state[K_MOSTRAR] = False
+    # O envio da visita anterior tambem some — inclusive a linha "documento
+    # enviado para ...", que carrega um endereco na tela (D30).
+    st.session_state[K_ENVIO_PEDIDO] = False
+    st.session_state[K_ENVIO_CONFIRMADO] = False
+    st.session_state[K_ENVIO_ESTADO] = None
+    # K_ENVIOS_FEITOS NAO e zerado de proposito: o teto e da SESSAO, e nao da
+    # visita. Zerar aqui tornaria o limite contornavel com um toque em `novo
+    # cliente`, que e um botao sem confirmacao.
     iniciar()
 
 
@@ -290,6 +329,73 @@ def esconder_resultado() -> None:
     ancora — este aqui nao apaga campo nenhum.
     """
     st.session_state[K_MOSTRAR] = False
+
+
+# ---------------------------------------------------------------------------
+# O ENVIO POR E-MAIL (D30)
+#
+# Os tres sao `on_click` pela mesma razao dos presets (§5.3), e por uma segunda
+# que so vale aqui: o envio e um EFEITO EXTERNO, e o Streamlit reexecuta o script
+# inteiro a cada interacao. Se o botao "enviasse" no corpo do script, qualquer
+# toque posterior — abrir um expander, mexer num slider — reexecutaria a linha e
+# mandaria o mesmo documento de novo. O pedido e um sinal de uma vez so, lido e
+# apagado no rerun seguinte por `exportador_pdf`.
+# ---------------------------------------------------------------------------
+
+
+def pedir_envio() -> None:
+    """Registra o toque em "Enviar por e-mail". Nao envia nada."""
+    st.session_state[K_ENVIO_PEDIDO] = True
+    st.session_state[K_ENVIO_ESTADO] = None
+
+
+def confirmar_envio() -> None:
+    """O documento interno foi confirmado: o pedido segue com o custo dentro."""
+    st.session_state[K_ENVIO_PEDIDO] = True
+    st.session_state[K_ENVIO_CONFIRMADO] = True
+
+
+def cancelar_envio() -> None:
+    """Desiste do envio pendente. O botao de baixar continua onde estava."""
+    st.session_state[K_ENVIO_PEDIDO] = False
+    st.session_state[K_ENVIO_CONFIRMADO] = False
+    st.session_state[K_ENVIO_ESTADO] = None
+
+
+def envio_pendente() -> bool:
+    return bool(st.session_state.get(K_ENVIO_PEDIDO))
+
+
+def envio_confirmado() -> bool:
+    return bool(st.session_state.get(K_ENVIO_CONFIRMADO))
+
+
+def encerrar_pedido_de_envio() -> None:
+    """Apaga o pedido ANTES de o transporte ser chamado.
+
+    A ordem e a defesa contra o envio duplicado: se o SMTP demora e o vendedor
+    toca em qualquer coisa, o rerun disparado por esse toque nao encontra pedido
+    pendente e nao manda um segundo documento.
+    """
+    st.session_state[K_ENVIO_PEDIDO] = False
+    st.session_state[K_ENVIO_CONFIRMADO] = False
+
+
+def registrar_envio(motivo: str | None) -> None:
+    """Guarda o desfecho para a linha da tela, e conta o que de fato saiu.
+
+    `motivo` e o que o transporte devolveu: `None` quando entregou, uma etiqueta
+    curta quando nao. Aqui isso vira `"enviado"` ou a propria etiqueta, porque
+    K_ENVIO_ESTADO em `None` ja significa "nenhum envio nesta tela" — usar o
+    mesmo `None` para sucesso apagaria a linha que confirma a entrega.
+    """
+    st.session_state[K_ENVIO_ESTADO] = ENVIADO if motivo is None else motivo
+    if motivo is None:
+        st.session_state[K_ENVIOS_FEITOS] = envios_feitos() + 1
+
+
+def envios_feitos() -> int:
+    return int(st.session_state.get(K_ENVIOS_FEITOS) or 0)
 
 
 def resultado_visivel() -> bool:

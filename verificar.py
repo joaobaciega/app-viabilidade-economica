@@ -97,6 +97,15 @@ MANUAIS = [
         "o toque baixa um arquivo que ABRE num leitor de PDF. Repita com o nome "
         "do cliente acentuado e confira o nome do arquivo baixado.",
     ),
+    (
+        "Enviar o PDF por e-mail (D30)",
+        "SO ESTE ITEM PRECISA DE CREDENCIAL: com `[email]` nos Secrets, digite "
+        "um endereco seu, toque em 'Enviar por e-mail', confira que a linha de "
+        "confirmacao NOMEIA o endereco, e confirme. O e-mail chega com o anexo "
+        "que abre, com copia para joao@suicatech.com.br, e o anexo e o MESMO "
+        "arquivo que o botao de baixar entrega. Repita SEM os Secrets: o botao "
+        "some, a linha explica, e o de baixar continua funcionando.",
+    ),
 ]
 
 

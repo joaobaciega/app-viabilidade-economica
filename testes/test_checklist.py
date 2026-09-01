@@ -240,6 +240,10 @@ def test_novo_cliente_limpa_tudo() -> None:
         estado.K_PRECO_ORIG,
         estado.K_CUSTO_ORIG,
         estado.K_NOME_CLIENTE,
+        # D30 — o endereco para onde o documento foi. Nao e preco nem custo, mas
+        # e de quem recebeu o PDF desta visita: deixar preenchido mostraria ao
+        # proximo cliente para quem o anterior pediu o documento.
+        estado.K_EMAIL,
     ):
         assert chave in estado.CAMPOS_DE_SESSAO
 
@@ -731,11 +735,16 @@ def test_runtime_nao_carrega_dependencia_de_desenvolvimento() -> None:
 
     # Nomes de import != nomes de distribuicao.
     distribuicao = {"fpdf": "fpdf2"}
+    # `smtplib`, `ssl` e `email` entraram com D30 (envio do PDF por e-mail).
+    # Sao BIBLIOTECA PADRAO: nao vao para requirements.txt, e sem esta linha o
+    # teste os leria como pacotes de terceiros faltando no runtime. Note que a
+    # varredura acima e por AST sobre a arvore INTEIRA — o import tardio dentro
+    # de `enviador_email.enviar()` conta igual a um import no topo do arquivo.
     padrao_ou_local = {
         "src", "pipeline", "testes", "__future__", "dataclasses", "typing",
         "pathlib", "functools", "base64", "io", "json", "re", "ast",
         "unicodedata", "datetime", "collections", "math", "html", "os", "sys",
-        "subprocess", "time", "urllib",
+        "subprocess", "time", "urllib", "smtplib", "ssl", "email",
     }
     usados = {
         distribuicao.get(nome, nome)
