@@ -264,10 +264,24 @@ def test_pdf_traz_os_tres_cenarios_medidos() -> None:
     for preset in P.PRESETS:
         assert preset.rotulo in texto, preset.rotulo
 
-    # T1 e 300 passagens, 1 ponto: 10% -> R$ 50.400; 40% -> R$ 182.160;
-    # 70% -> R$ 319.752, com o traseiro seguindo o par de cada preset.
-    for valor in ("50.400", "182.160", "319.752"):
+    # T1 e 300 passagens, 1 ponto: 10% -> R$ 50.400; 30% -> R$ 141.480;
+    # 60% -> R$ 279.072, com o traseiro seguindo o par de cada preset.
+    # (Valores de D31, 22/09/2026. Antes de D31 o par realista/otimista era
+    # 40/70 e dava R$ 182.160 e R$ 319.752.)
+    for valor in ("50.400", "279.072"):
         assert valor in texto, valor
+
+    # O REALISTA PRECISA DE UMA ASSERCAO MAIS FORTE DESDE D31, e a razao e uma
+    # coincidencia aritmetica nova: com o realista em 30%/10% o preset passou a
+    # ser EXATAMENTE o cenario simulado do T1, entao R$ 141.480 tambem e a
+    # manchete do documento. Um `in texto` aqui passaria com a tira de cenarios
+    # inteira apagada — que e justamente o defeito que este teste existe para
+    # pegar. Exigir repeticao amarra a tira: o valor aparece na manchete E na
+    # faixa dos tres.
+    assert texto.count("141.480") >= 2, (
+        "o valor do realista precisa aparecer na manchete E na tira de "
+        f"cenários; encontrado {texto.count('141.480')}x"
+    )
 
     # E a procedencia medida vai junto, com a palavra "estimativa" NEGADA —
     # nunca afirmada ao lado de um numero de carteira (§4).

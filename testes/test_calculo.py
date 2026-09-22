@@ -337,11 +337,17 @@ def test_T9_preset_ativo_e_derivado() -> None:
 
     e = esperado("T9")
 
-    # Preset exato: ativo. As entradas vem do proprio preset realista, e nao do
-    # caso T1: desde D21 o realista e 40%/10% e o T1 continua em 30%/10% (os
-    # numeros de ouro dos 16 casos nao foram recalculados de proposito — ver
-    # D21 em docs/DIVERGENCIAS.md). Derivar do preset mantem este teste medindo
-    # o que ele quer medir: que "preset ativo" e uma COMPARACAO, nao um flag.
+    # Preset exato: ativo. As entradas vem do PROPRIO preset realista, e nunca
+    # do caso T1 — e isso continua valendo mesmo agora que os dois coincidem.
+    #
+    # Historico, porque o valor deste `replace` nao e obvio hoje: em D21 o
+    # realista virou 40%/10% enquanto o T1 seguiu em 30%/10% (os numeros de ouro
+    # dos 16 casos nao foram recalculados de proposito), e ler do preset foi o
+    # que manteve este teste medindo o que ele quer. Em D31 o realista voltou a
+    # 30%/10% e a coincidencia reapareceu. NAO troque por `entradas_do_caso`:
+    # na proxima vez que o cliente revisar um preset, o teste passaria a afirmar
+    # que o T1 e um preset, que e outra coisa. O que se mede aqui e que "preset
+    # ativo" e uma COMPARACAO, nao um flag.
     realista = P.preset_por_nome("realista")
     exato = replace(
         entradas_do_caso("T1"),

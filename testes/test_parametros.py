@@ -131,7 +131,9 @@ def test_decisao_H_todo_preset_declara_procedencia_coerente() -> None:
     porque apresentar derivacao com autoridade de medicao e o risco n. 1 do
     plano. Em 27/08/2026 o cliente informou que os seis valores (dianteiro
     10/40/70 e traseiro 5/10/18) sao dado medido na carteira, e a derivacao
-    proporcional deixou de existir.
+    proporcional deixou de existir. O dianteiro foi revisado para 10/30/60 em
+    22/09/2026 (D31), e o traseiro NAO foi tocado — §5.13 proibe deriva-lo do
+    dianteiro, entao revisar um nunca mexe no outro.
 
     O QUE CONTINUA TRAVADO, e e o que importa: nenhum preset pode ficar sem
     procedencia declarada, e o mecanismo de distincao continua vivo — se algum

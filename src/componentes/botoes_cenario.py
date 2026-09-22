@@ -11,8 +11,10 @@ controle.
 
     ┌────────────┐ ┌────────────┐ ┌────────────┐
     │ PESSIMISTA │ │  REALISTA  │ │  OTIMISTA  │   <- t-preset-nome 22/700
-    │    20%     │ │    30%     │ │    40%     │   <- t-preset-valor 32/700
+    │    10%     │ │    30%     │ │    60%     │   <- t-preset-valor 32/700
     └────────────┘ └────────────┘ └────────────┘
+    Os percentuais acima sao ILUSTRACAO do desenho, e nao a fonte: os
+    valores vivem em `parametros.PRESETS` e foram revisados em D21 e D31.
        96px de altura, largura total da coluna
     Aproveitamento dianteiro medido em 15+ concessionarias
     da carteira Suicatech — nao e estimativa            <- t-derivado

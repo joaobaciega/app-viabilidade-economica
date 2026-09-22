@@ -15,8 +15,10 @@ Especificacao de marcas (§5.11):
                    com anel de 2px na cor da superficie
   rotulo direto    EXATAMENTE UM, junto ao marcador, com o valor anual.
                    A menos de 80px da borda direita, vira para a esquerda
-  marcas de preset tres mark_rule verticais em 20/30/40%, 1px SOLIDA --traco.
-                   NUNCA tracejadas
+  marcas de preset tres mark_rule verticais, uma por preset do dianteiro
+                   (10/30/60% desde D31), 1px SOLIDA --traco. As posicoes vem
+                   de `parametros.PRESETS`, nunca de literal aqui. NUNCA
+                   tracejadas
   linha do zero    horizontal em y=0, 1px solida --tinta-secundaria, rotulada
                    R$ 0. DESENHADA APENAS quando o dominio de y cruza o zero
   grade            horizontal, 1px solida --grade. SEM GRADE VERTICAL — as

@@ -685,6 +685,57 @@ a deixa atrás do conteúdo.
 `test_T14_moeda_curta_espelha_o_eixo_da_tela` e
 `test_T14_abreviacao_de_moeda_e_so_para_eixo`.
 
+### D31 — O dianteiro dos presets desceu para 10/30/60
+
+Pedido do cliente em 22/09/2026: *"altere o cenário realista para 30% e o
+otimista para 60%"*.
+
+| Preset | Dianteiro antes (D21) | Dianteiro agora | Traseiro |
+|---|---|---|---|
+| PESSIMISTA | 10% | 10% *(intocado)* | 5% |
+| REALISTA | 40% | **30%** | 10% *(intocado)* |
+| OTIMISTA | 70% | **60%** | 18% *(intocado)* |
+
+#### O traseiro não foi tocado, e isso é regra e não escolha
+
+O pedido nomeou um percentual por cenário, e esse percentual é o do
+**dianteiro** — o número que o botão mostra. O traseiro tem botões próprios e
+valores próprios, e a §5.13 é explícita: *"é PROIBIDO derivar o preço ou o custo
+do traseiro a partir do dianteiro por qualquer fator"*. O mesmo espírito vale
+para o aproveitamento — foi exatamente essa derivação proporcional que D21
+matou. Revisar um nunca mexe no outro; 5/10/18 continuam medidos e só mudam
+quando a carteira disser que mudaram.
+
+#### O que a mudança arrasta
+
+- **Os três cenários do PDF e da tela** (T1, 300 passagens, 1 ponto):
+  `R$ 50.400` / **`R$ 141.480`** / **`R$ 279.072`**. Antes: 50.400 / 182.160 /
+  319.752.
+- **`SLIDER_DOMINIO` continua `(0, 80)`.** O teto de 80 foi escolhido em D21
+  pelo otimista de 70 e hoje sobra folga à direita do último preset. Baixá-lo
+  mudaria a escala do eixo X do gráfico **e** o alcance do slider, que é decisão
+  de desenho e não consequência aritmética deste pedido. V5 só exige que o
+  domínio **cubra** os presets.
+- **Nenhum número de ouro dos 16 casos mudou.** O bloco `base` de `casos.json`
+  sempre esteve em 30%/10% e continua — T1 a T16 seguem intactos.
+
+#### A coincidência nova, e os dois testes que ela quase esvaziou
+
+Com o realista em 30%/10%, **o preset passou a ser exatamente o cenário do
+T1**. Isso é confortável de ler e perigoso de testar: dois testes passariam sem
+medir mais nada.
+
+| Teste | O que a coincidência fazia | Correção |
+|---|---|---|
+| `test_render_preset_realista_escreve_o_par_medido` | `_preencher_dianteiro` já deixa os sliders em 30/10, então o clique em REALISTA escrevia o que já estava lá — o teste passaria com `aplicar_preset` **vazio** | os sliders são deslocados para fora do preset antes do toque, e esse deslocamento é o teste, não preparo |
+| `test_pdf_traz_os_tres_cenarios_medidos` | `"141.480" in texto` casava com a **manchete** do documento, então passaria com a tira de cenários inteira apagada | exige `count(...) >= 2`: o valor aparece na manchete **e** na faixa dos três |
+
+A primeira foi verificada por mutação: com `aplicar_preset` retornando cedo, o
+teste corrigido reprova. Antes da correção, passava.
+
+**Travado por:** os dois testes acima, mais `test_T15_V2_presets_nao_crescentes_abortam`
+(10 < 30 < 60) e `test_T15_V5_dominio_que_nao_cobre_preset_aborta`.
+
 ### D30 — O documento passou a sair por e-mail
 
 Pedido do cliente em 01/09/2026: *"um botão — que ficará abaixo do botão de

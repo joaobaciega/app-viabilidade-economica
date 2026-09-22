@@ -92,14 +92,19 @@ def _preencher_dianteiro(at: AppTest) -> AppTest:
 
     # O CENARIO VEM DOS SLIDERS, e nao de `btn_preset_realista`.
     #
-    # Antes este helper clicava REALISTA. Desde D21 o realista e 40%/10%, e o
-    # bloco `base` de casos.json continua em 30%/10% — os numeros de ouro dos
-    # 16 casos NAO foram recalculados de proposito, para nao refazer a mao a
-    # aritmetica de T1, T2, T3, T4, T11 e de todo o test_pdf. Ajustar os
+    # Antes este helper clicava REALISTA. Em D21 o realista virou 40%/10%
+    # enquanto o bloco `base` de casos.json seguiu em 30%/10% — os numeros de
+    # ouro dos 16 casos NAO foram recalculados de proposito, para nao refazer a
+    # mao a aritmetica de T1, T2, T3, T4, T11 e de todo o test_pdf. Ajustar os
     # sliders chega ao mesmo estado sem depender de qual preset e qual.
     #
-    # Que apertar REALISTA escreve 40% e 10% e coberto por
-    # `test_render_preset_realista_escreve_o_par_medido`.
+    # Em D31 (22/09/2026) o realista voltou a 30%/10% e os dois coincidem de
+    # novo. MANTER OS SLIDERS MESMO ASSIM: a coincidencia e do momento, e
+    # clicar no preset faria dezenas de testes de numero dependerem de um valor
+    # que o cliente revisa quando quer.
+    #
+    # Que apertar REALISTA escreve o par medido do preset e coberto por
+    # `test_render_preset_realista_escreve_o_par_medido`, que le de P.PRESETS.
     at.slider(key="conv_dianteiro").set_value(
         int(round(base["aproveitamento_dianteiro"] * 100))
     ).run()
@@ -574,16 +579,29 @@ def test_render_procedencia_do_traseiro_e_declarada_na_faixa() -> None:
 
 
 def test_render_preset_realista_escreve_o_par_medido() -> None:
-    """D21: REALISTA escreve 40% no dianteiro e 10% no traseiro, de uma vez.
+    """D21: REALISTA escreve o par medido nas DUAS grandezas, de uma vez.
 
     Um preset e um PAR medido: apertar o botao escreve as duas grandezas. Mover
     o slider do dianteiro, ao contrario, nunca toca no traseiro — e essa
     assimetria e a mitigacao do risco n. 1 do plano.
+
+    OS SLIDERS SAO TIRADOS DO PRESET ANTES DO TOQUE, e isso e o teste e nao
+    preparo. Desde D31 o realista voltou a 30%/10%, que e exatamente onde
+    `_preencher_dianteiro` deixa os sliders (o bloco `base` de casos.json) — sem
+    este deslocamento o teste passaria com `aplicar_preset` fazendo NADA, porque
+    os valores ja estariam certos antes do clique. Foi por um triz.
     """
+    realista = next(p for p in P.PRESETS if p.nome == "realista")
+    fora_d = int(round(realista.dianteiro * 100)) + 7
+    fora_t = int(round(realista.traseiro * 100)) + 3
+
     at = _preencher_dianteiro(_app())
+    at.slider(key="conv_dianteiro").set_value(fora_d).run()
+    at.slider(key="conv_traseiro").set_value(fora_t).run()
+    assert at.slider(key="conv_dianteiro").value == fora_d, "preparo do teste"
+
     at.button(key="btn_preset_realista").click().run()
 
-    realista = next(p for p in P.PRESETS if p.nome == "realista")
     assert at.slider(key="conv_dianteiro").value == int(
         round(realista.dianteiro * 100)
     )

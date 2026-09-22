@@ -28,8 +28,9 @@ from typing import Literal
 # plano: apresentar numero derivado com a mesma autoridade de numero medido faz
 # o app vender derivacao como medicao, e o erro so aparece no mes 3 do cliente.
 #
-# ESTADO ATUAL (D21, 27/08/2026): o cliente afirmou que os seis valores dos
-# presets — dianteiro 10/40/70 e traseiro 5/10/18 — sao dado MEDIDO na carteira.
+# ESTADO ATUAL (D21, 27/08/2026; dianteiro revisado por D31, 22/09/2026): o
+# cliente afirmou que os seis valores dos presets — dianteiro 10/30/60 e
+# traseiro 5/10/18 — sao dado MEDIDO na carteira.
 # Por isso os seis declaram `carteira_medida` e nenhum usa `derivado` hoje.
 # O valor `derivado` continua existindo no tipo e o mecanismo continua montado
 # (marcador_procedencia, faixa de premissas): no dia em que um preset voltar a
@@ -84,7 +85,18 @@ class Categoria:
 # (10%) era medida e os extremos eram derivados do dianteiro pela mesma
 # proporcao — essa derivacao DEIXOU DE EXISTIR, e com ela a marca `≈ derivado`.
 #
-# O otimista de 70% e o que obriga SLIDER_DOMINIO a chegar a 80 (V5 abaixo).
+# REVISADOS EM 22/09/2026 (D31, decisao do cliente): o DIANTEIRO desceu de
+# 10/40/70 para 10/30/60 — realista 40 -> 30 e otimista 70 -> 60. O pessimista
+# ficou onde estava.
+#
+# O TRASEIRO NAO FOI TOCADO, e isso e regra e nao escolha: a §5.13 proibe
+# derivar o traseiro do dianteiro por qualquer fator. Os tres continuam 5/10/18,
+# medidos, e so mudam quando a carteira disser que mudaram.
+#
+# SLIDER_DOMINIO CONTINUA (0, 80). O teto de 80 foi escolhido pelo otimista de
+# 70 e hoje sobra folga; baixa-lo mudaria a escala do eixo X do grafico e do
+# slider, que e decisao de desenho e nao consequencia deste ajuste. V5 so exige
+# que o dominio CUBRA os presets, e 80 cobre.
 # ---------------------------------------------------------------------------
 
 PRESETS: tuple[Preset, ...] = (
@@ -99,7 +111,7 @@ PRESETS: tuple[Preset, ...] = (
     Preset(
         nome="realista",
         rotulo="REALISTA",
-        dianteiro=0.40,
+        dianteiro=0.30,
         traseiro=0.10,
         origem_dianteiro="carteira_medida",
         origem_traseiro="carteira_medida",
@@ -107,7 +119,7 @@ PRESETS: tuple[Preset, ...] = (
     Preset(
         nome="otimista",
         rotulo="OTIMISTA",
-        dianteiro=0.70,
+        dianteiro=0.60,
         traseiro=0.18,
         origem_dianteiro="carteira_medida",
         origem_traseiro="carteira_medida",
